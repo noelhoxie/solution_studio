@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign In — Solution Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: #0d0d0d;
+      color: #f0f0f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    /* Subtle grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+
+    /* Glow orb */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(ellipse, rgba(27,111,235,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .login-card {
+      position: relative;
+      width: 100%;
+      max-width: 420px;
+      background: #171717;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 40px 36px;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+      z-index: 1;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+
+    .brand-logo {
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+    }
+
+    .brand-text { line-height: 1.2; }
+    .brand-name { font-size: 15px; font-weight: 700; color: #f0f0f0; }
+    .brand-sub  { font-size: 11px; color: #6b7280; }
+
+    .login-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f0f0f0;
+      margin-bottom: 6px;
+    }
+    .login-sub {
+      font-size: 13.5px;
+      color: #6b7280;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    .field { margin-bottom: 16px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #9ca3af;
+      margin-bottom: 6px;
+      letter-spacing: .03em;
+    }
+    .field input {
+      width: 100%;
+      background: #0d0d0d;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 9px;
+      padding: 11px 14px;
+      font-size: 14px;
+      color: #f0f0f0;
+      font-family: inherit;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .field input:focus { border-color: #1B6FEB; }
+    .field input::placeholder { color: #4b5563; }
+
+    .error-box {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.25);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12.5px;
+      color: #f87171;
+      margin-bottom: 18px;
+      line-height: 1.4;
+    }
+
+    .submit-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #1B6FEB, #0EA5E9);
+      color: #fff;
+      border: none;
+      border-radius: 9px;
+      padding: 13px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity .15s;
+      margin-top: 8px;
+      letter-spacing: .01em;
+    }
+    .submit-btn:hover  { opacity: .88; }
+    .submit-btn:active { opacity: .75; }
+
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 24px 0 20px;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(255,255,255,0.07);
+    }
+    .divider span { font-size: 11px; color: #4b5563; white-space: nowrap; }
+
+    .footer-note {
+      text-align: center;
+      font-size: 11.5px;
+      color: #4b5563;
+      line-height: 1.6;
+    }
+    .footer-note a { color: #1B6FEB; text-decoration: none; }
+    .footer-note a:hover { text-decoration: underline; }
+
+    .powered {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      font-size: 11px;
+      color: #374151;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-card">
+
+  <div class="brand">
+    <svg class="brand-logo" viewBox="0 0 300 331" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M283.923 136.449L150.144 213.624L6.88995 131.168L0 134.982V194.844L150.144 281.115L283.923 204.234V235.926L150.144 313.1L6.88995 230.644L0 234.458V244.729L150.144 331L300 244.729V184.867L293.11 181.052L150.144 263.215L16.0766 186.334V154.643L150.144 231.524L300 145.253V86.2713L292.536 81.8697L150.144 163.739L22.9665 90.9663L150.144 17.8998L254.641 78.055L263.828 72.773V65.4371L150.144 0L0 86.2713V95.6613L150.144 181.933L283.923 104.758V136.449Z" fill="#FF3621"/>
+    </svg>
+    <div class="brand-text">
+      <div class="brand-name">Solution Studio</div>
+      <div class="brand-sub">Powered by Databricks</div>
+    </div>
+  </div>
+
+  <div class="login-title">Welcome to the Solution Studio</div>
+  <div class="login-sub">Login with your name and company to find out about different AI powered business applications specifically for the manufacturing industry.</div>
+
+  <!-- Error message injected server-side via JS below -->
+  <div class="error-box" id="error-box" style="display:none"></div>
+
+  <form method="POST" action="/login" id="login-form">
+    <div class="field">
+      <label for="username">Your Name</label>
+      <input type="text" id="username" name="username" placeholder="Jane Smith" required autocomplete="name" autofocus/>
+    </div>
+    <div class="field">
+      <label for="password">Company</label>
+      <input type="text" id="password" name="password" placeholder="Acme Corp" required autocomplete="organization"/>
+    </div>
+    <button class="submit-btn" type="submit">Sign In</button>
+  </form>
+
+  <div class="divider"><span>secure access</span></div>
+
+  <div class="footer-note">
+    Need access? Contact your Databricks account team<br>
+    or email <a href="mailto:noel.hoxie@databricks.com">noel.hoxie@databricks.com</a>
+  </div>
+
+  <div class="powered">
+    <svg width="14" height="14" viewBox="0 0 300 331" fill="none">
+      <path d="M283.923 136.449L150.144 213.624L6.88995 131.168L0 134.982V194.844L150.144 281.115L283.923 204.234V235.926L150.144 313.1L6.88995 230.644L0 234.458V244.729L150.144 331L300 244.729V184.867L293.11 181.052L150.144 263.215L16.0766 186.334V154.643L150.144 231.524L300 145.253V86.2713L292.536 81.8697L150.144 163.739L22.9665 90.9663L150.144 17.8998L254.641 78.055L263.828 72.773V65.4371L150.144 0L0 86.2713V95.6613L150.144 181.933L283.923 104.758V136.449Z" fill="#FF3621"/>
+    </svg>
+    Powered by Databricks
+  </div>
+
+</div>
+
+<script>
+  // Show error passed via URL param (set by server on failed login)
+  const params = new URLSearchParams(window.location.search);
+  const err = params.get('error');
+  if (err) {
+    const box = document.getElementById('error-box');
+    box.textContent = decodeURIComponent(err);
+    box.style.display = 'block';
+  }
+
+  // Client-side: redirect to error param on 401 response
+  document.getElementById('login-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+    const res  = await fetch('/login', { method: 'POST', body: data });
+    if (res.redirected) {
+      window.location.href = res.url;
+    } else if (res.status === 401) {
+      const box = document.getElementById('error-box');
+      box.textContent = 'Please enter your name and company to continue.';
+      box.style.display = 'block';
+      document.getElementById('username').focus();
+    }
+  });
+</script>
+
+</body>
+</html>

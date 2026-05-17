@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/svg+xml" href="/manufacturing/favicon.svg"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Databricks Manufacturing Intelligence</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="/manufacturing/css/styles.css">
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────────────────────────── -->
+<header class="app-header">
+  <div class="header-brand">
+    <div class="db-logo-mark">
+      <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
+        <path d="M16 3L4 10v6l12 7 12-7v-6L16 3z" fill="#FF3621"/>
+        <path d="M4 16v6l12 7 12-7v-6l-12 7-12-7z" fill="#FF6B35" opacity="0.85"/>
+      </svg>
+    </div>
+    <div class="header-title">
+      <div class="header-title-main">Databricks Manufacturing Intelligence</div>
+      <div class="header-title-sub">Automotive Manufacturing · Plant 1</div>
+    </div>
+  </div>
+
+  <div class="header-divider"></div>
+
+  <div class="header-kpis">
+    <div class="hdr-kpi">
+      <div class="hdr-kpi-label">PLANT OEE</div>
+      <div class="hdr-kpi-val" id="hdr-oee">—</div>
+    </div>
+    <div class="hdr-sep"></div>
+    <div class="hdr-kpi">
+      <div class="hdr-kpi-label">RUNNING</div>
+      <div class="hdr-kpi-val green" id="hdr-running">—</div>
+    </div>
+    <div class="hdr-sep"></div>
+    <div class="hdr-kpi fault-kpi">
+      <div class="hdr-kpi-label">FAULTS</div>
+      <div class="hdr-kpi-val red" id="hdr-faults">—</div>
+    </div>
+    <div class="hdr-sep"></div>
+    <div class="alarm-badge" id="hdr-alarms">
+      <div class="alarm-dot"></div>
+      <span id="hdr-alarm-count">—</span> ALARMS
+    </div>
+  </div>
+
+  <div class="live-indicator">
+    <div class="live-dot"></div>
+    LIVE
+  </div>
+
+  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">🌙</button>
+
+  <div class="header-powered">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#FF3621" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Powered by Databricks
+  </div>
+</header>
+
+<!-- ── Nav ────────────────────────────────────────────────────────────────── -->
+<nav class="app-nav">
+  <button class="nav-tab active" data-tab="floor"    onclick="switchTab('floor')">Live Floor</button>
+  <button class="nav-tab"        data-tab="oee"      onclick="switchTab('oee')">OEE Analytics</button>
+  <button class="nav-tab"        data-tab="downtime"    onclick="switchTab('downtime')">Downtime</button>
+  <button class="nav-tab"        data-tab="maintenance" onclick="switchTab('maintenance')">Predictive Maintenance <span class="ai-pip"></span></button>
+  <button class="nav-tab"        data-tab="quality"     onclick="switchTab('quality')">Quality</button>
+  <button class="nav-tab"        data-tab="shift"    onclick="switchTab('shift')">
+    Ask SHIFT <span class="ai-pip"></span>
+  </button>
+  <button class="nav-tab"        data-tab="manuals"  onclick="switchTab('manuals')">
+    Equipment Manuals <span class="ai-pip"></span>
+  </button>
+  <button class="nav-agent-btn" id="nav-agent-btn" onclick="openAgentPanel()">
+    <!-- Databricks Genie star (4-point sparkle) -->
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 2C12 7.8 7.8 12 2 12C7.8 12 12 16.2 12 22C12 16.2 16.2 12 22 12C16.2 12 12 7.8 12 2Z"/>
+    </svg>
+    Actions Taken
+  </button>
+</nav>
+
+<!-- ── Talk Track FAB ────────────────────────────────────────────────────── -->
+<button class="talk-fab" id="talk-fab" onclick="openTalkTrack()" title="60-second talk track">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+  <span>Talk Track</span>
+</button>
+
+<!-- ── Main ───────────────────────────────────────────────────────────────── -->
+<div class="main-content">
+
+  <!-- ═══════════════════ LIVE FLOOR ══════════════════════════════════════ -->
+  <div id="tab-floor" class="tab-panel">
+
+    <!-- ── Interactive 2D Floor Map ─────────────────────────────────────── -->
+    <div class="floor-map-outer" id="floor-map-outer">
+
+      <!-- Header bar -->
+      <div class="fmap-header">
+        <div class="fmap-legend">
+          <span class="legend-item"><span class="ldot ldot-green"></span>Running</span>
+          <span class="legend-item"><span class="ldot ldot-yellow"></span>Idle</span>
+          <span class="legend-item"><span class="ldot ldot-red"></span>Fault</span>
+          <span class="legend-item"><span class="ldot ldot-blue"></span>Maintenance</span>
+          <span class="sfh-hint">Scroll to zoom · Drag to pan · Click machine for diagnosis</span>
+        </div>
+        <div class="fmap-zoom-controls">
+          <button class="fmap-zoom-btn" onclick="floorZoom(1.3)">+</button>
+          <button class="fmap-zoom-btn" onclick="floorZoomReset()">⊙</button>
+          <button class="fmap-zoom-btn" onclick="floorZoom(0.77)">−</button>
+        </div>
+      </div>
+
+      <!-- Viewport (overflow hidden, receives scroll/drag) -->
+      <div class="fmap-viewport" id="fmap-viewport">
+
+        <!-- Canvas (gets scale+translate transform) -->
+        <div class="fmap-canvas" id="fmap-canvas">
+
+          <!-- SVG: zone backgrounds + flow arrows -->
+          <svg class="fmap-svg" viewBox="0 0 1240 740" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+            <!-- Zone: Body Shop -->
+            <rect x="30" y="34" width="730" height="196" rx="10" fill="rgba(59,130,246,0.06)" stroke="rgba(59,130,246,0.25)" stroke-width="1.2"/>
+            <text x="46" y="54" font-size="10" fill="rgba(59,130,246,0.7)" font-family="monospace" letter-spacing="1" font-weight="700">LINE A · BODY SHOP — VEHICLE BODY ASSEMBLIES</text>
+            <!-- Zone: Paint Shop -->
+            <rect x="30" y="274" width="870" height="196" rx="10" fill="rgba(168,85,247,0.06)" stroke="rgba(168,85,247,0.22)" stroke-width="1.2"/>
+            <text x="46" y="294" font-size="10" fill="rgba(168,85,247,0.7)" font-family="monospace" letter-spacing="1" font-weight="700">LINE B · PAINT SHOP — PAINTED BODY UNITS</text>
+            <!-- Zone: Powertrain -->
+            <rect x="30" y="514" width="730" height="196" rx="10" fill="rgba(234,179,8,0.06)" stroke="rgba(234,179,8,0.22)" stroke-width="1.2"/>
+            <text x="46" y="534" font-size="10" fill="rgba(234,179,8,0.65)" font-family="monospace" letter-spacing="1" font-weight="700">LINE C · POWERTRAIN — ENGINE &amp; DRIVETRAIN MODULES</text>
+            <!-- Zone: Final Assembly -->
+            <rect x="960" y="274" width="250" height="196" rx="10" fill="rgba(239,68,68,0.07)" stroke="rgba(239,68,68,0.30)" stroke-width="1.5"/>
+            <text x="976" y="294" font-size="10" fill="rgba(239,68,68,0.75)" font-family="monospace" letter-spacing="1" font-weight="700">FINAL ASSEMBLY</text>
+
+            <!-- Flow arrows Line A (horizontal) -->
+            <defs>
+              <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L6,3 z" fill="rgba(255,255,255,0.2)"/>
+              </marker>
+              <marker id="arr-r" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0 L0,6 L6,3 z" fill="rgba(239,68,68,0.5)"/>
+              </marker>
+            </defs>
+            <line x1="185" y1="132" x2="228" y2="132" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" marker-end="url(#arr)"/>
+            <line x1="353" y1="132" x2="396" y2="132" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" marker-end="url(#arr)"/>
+            <line x1="521" y1="132" x2="564" y2="132" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" marker-end="url(#arr)"/>
+            <!-- A exit → FAL convergence path -->
+            <path d="M710,132 H920 V372" stroke="rgba(59,130,246,0.35)" stroke-width="1.5" fill="none" marker-end="url(#arr)" stroke-dasharray="5,3"/>
+
+            <!-- Flow arrows Line B (horizontal) -->
+            <line x1="185" y1="372" x2="218" y2="372" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" marker-end="url(#arr)"/>
+            <line x1="338" y1="372" x2="371" y2="372" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" marker-end="url(#arr)"/>
+            <line x1="491" y1="372" x2="524" y2="372" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" marker-end="url(#arr)"/>
+            <line x1="644" y1="372" x2="677" y2="372" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" marker-end="url(#arr)"/>
+            <!-- B exit → FAL -->
+            <line x1="812" y1="372" x2="958" y2="372" stroke="rgba(168,85,247,0.35)" stroke-width="1.5" fill="none" marker-end="url(#arr)" stroke-dasharray="5,3"/>
+
+            <!-- Flow arrows Line C (horizontal) -->
+            <line x1="185" y1="612" x2="228" y2="612" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" marker-end="url(#arr)"/>
+            <line x1="353" y1="612" x2="396" y2="612" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" marker-end="url(#arr)"/>
+            <line x1="521" y1="612" x2="564" y2="612" stroke="rgba(255,255,255,0.18)" stroke-width="1.5" marker-end="url(#arr)"/>
+            <!-- C exit → FAL convergence path -->
+            <path d="M710,612 H920 V412" stroke="rgba(234,179,8,0.35)" stroke-width="1.5" fill="none" marker-end="url(#arr)" stroke-dasharray="5,3"/>
+
+            <!-- Aisle labels -->
+            <rect x="30" y="242" width="760" height="20" rx="4" fill="rgba(255,255,255,0.03)"/>
+            <text x="40" y="256" font-size="9" fill="rgba(255,255,255,0.2)" font-family="monospace" letter-spacing="2">◀  AISLE 4A · BODY TRANSFER CONVEYOR  ▶</text>
+            <rect x="30" y="482" width="760" height="20" rx="4" fill="rgba(255,255,255,0.03)"/>
+            <text x="40" y="496" font-size="9" fill="rgba(255,255,255,0.2)" font-family="monospace" letter-spacing="2">◀  AISLE 4B · POWERTRAIN DELIVERY AGV  ▶</text>
+          </svg>
+
+          <!-- Machine nodes — Line A (Body Shop) y=132 -->
+          <div class="fnode" id="fnode-BDY-STM-01" style="left:50px;  top:92px"  onclick="selectMachine('BDY-STM-01')"></div>
+          <div class="fnode" id="fnode-BDY-WLD-01" style="left:218px; top:92px"  onclick="selectMachine('BDY-WLD-01')"></div>
+          <div class="fnode" id="fnode-BDY-SLD-01" style="left:386px; top:92px"  onclick="selectMachine('BDY-SLD-01')"></div>
+          <div class="fnode" id="fnode-BDY-INS-01" style="left:554px; top:92px"  onclick="selectMachine('BDY-INS-01')"></div>
+
+          <!-- Machine nodes — Line B (Paint Shop) y=372 -->
+          <div class="fnode" id="fnode-PNT-PRP-01" style="left:50px;  top:332px" onclick="selectMachine('PNT-PRP-01')"></div>
+          <div class="fnode" id="fnode-PNT-ECT-01" style="left:200px; top:332px" onclick="selectMachine('PNT-ECT-01')"></div>
+          <div class="fnode" id="fnode-PNT-BSC-01" style="left:350px; top:332px" onclick="selectMachine('PNT-BSC-01')"></div>
+          <div class="fnode" id="fnode-PNT-CLR-01" style="left:500px; top:332px" onclick="selectMachine('PNT-CLR-01')"></div>
+          <div class="fnode" id="fnode-PNT-INS-01" style="left:650px; top:332px" onclick="selectMachine('PNT-INS-01')"></div>
+
+          <!-- Machine nodes — Line C (Powertrain) y=612 -->
+          <div class="fnode" id="fnode-PTN-MCH-01" style="left:50px;  top:572px" onclick="selectMachine('PTN-MCH-01')"></div>
+          <div class="fnode" id="fnode-PTN-HAD-01" style="left:218px; top:572px" onclick="selectMachine('PTN-HAD-01')"></div>
+          <div class="fnode" id="fnode-PTN-BLD-01" style="left:386px; top:572px" onclick="selectMachine('PTN-BLD-01')"></div>
+          <div class="fnode" id="fnode-PTN-DYN-01" style="left:554px; top:572px" onclick="selectMachine('PTN-DYN-01')"></div>
+
+          <!-- Machine node — Final Assembly (convergence) -->
+          <div class="fnode fnode-final" id="fnode-FAL-ASM-01" style="left:968px; top:332px" onclick="selectMachine('FAL-ASM-01')"></div>
+
+        </div><!-- /fmap-canvas -->
+      </div><!-- /fmap-viewport -->
+
+    </div><!-- /floor-map-outer -->
+
+  </div><!-- /floor -->
+
+
+  <!-- ═══════════════════ OEE ANALYTICS ═══════════════════════════════════ -->
+  <div id="tab-oee" class="tab-panel hidden">
+
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Plant OEE</div>
+        <div class="kpi-value" id="oee-plant">—</div>
+        <div class="kpi-sub">all lines combined</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Line A OEE</div>
+        <div class="kpi-value orange" id="oee-line-a">—</div>
+        <div class="kpi-sub">Body Shop</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Line B OEE</div>
+        <div class="kpi-value blue" id="oee-line-b">—</div>
+        <div class="kpi-sub">Paint Shop</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Line C OEE</div>
+        <div class="kpi-value purple" id="oee-line-c">—</div>
+        <div class="kpi-sub">Powertrain</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">OEE Target</div>
+        <div class="kpi-value normal">88%</div>
+        <div class="kpi-sub">plant-wide standard</div>
+      </div>
+    </div>
+
+    <div class="oee-layout">
+
+      <div class="oee-main">
+        <div class="section-header">
+          <div class="section-title">OEE by Machine — Current Shift</div>
+          <div class="section-sub">Click any bar to see Availability · Performance · Quality breakdown and improvement suggestions</div>
+        </div>
+        <div class="chart-card">
+          <canvas id="oee-machine-chart" height="130"></canvas>
+        </div>
+
+        <!-- OEE factors detail panel — shown on bar click -->
+        <div class="oee-factors-panel hidden" id="oee-factors-panel"></div>
+      </div>
+
+      <div class="oee-sidebar">
+        <div class="section-header">
+          <div class="section-title">OEE Breakdown</div>
+          <div class="section-sub">Availability · Performance · Quality</div>
+        </div>
+        <div class="oee-breakdown-cards" id="oee-breakdown-cards"></div>
+      </div>
+
+    </div>
+  </div><!-- /oee -->
+
+
+  <!-- ═══════════════════ DOWNTIME ═════════════════════════════════════════ -->
+  <div id="tab-downtime" class="tab-panel hidden">
+
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Downtime (Shift)</div>
+        <div class="kpi-value red" id="dt-total">560 min</div>
+        <div class="kpi-sub">all causes combined</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Unplanned Downtime</div>
+        <div class="kpi-value red" id="dt-unplanned">336 min</div>
+        <div class="kpi-sub">equipment + quality holds</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Top Cause</div>
+        <div class="kpi-value orange" style="font-size:16px;">Equip. Fault</div>
+        <div class="kpi-sub">38.2% of all downtime</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Machines with MTBF Alert</div>
+        <div class="kpi-value red">3</div>
+        <div class="kpi-sub">below 200h threshold</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg MTTR</div>
+        <div class="kpi-value yellow">2.6h</div>
+        <div class="kpi-sub">mean time to repair</div>
+      </div>
+    </div>
+
+    <!-- ── Downtime Impact Calculator ─────────────────────────────────────── -->
+    <div class="impact-calc-card">
+      <div class="calc-header-row">
+        <div class="calc-title-block">
+          <div class="calc-title">Machine Downtime Impact Calculator</div>
+          <div class="calc-sub">Select a machine, enter downtime hours — see downstream asset starvation and business impact</div>
+        </div>
+        <div class="calc-controls">
+          <div class="calc-ctrl-group">
+            <label class="calc-label">DOWNTIME HOURS</label>
+            <div class="calc-hour-row">
+              <input type="range" id="dt-slider" min="0.5" max="24" step="0.5" value="4" class="calc-slider">
+              <input type="number" id="dt-hours" min="0.5" max="24" step="0.5" value="4" class="calc-num">
+              <span class="calc-unit">hrs</span>
+            </div>
+          </div>
+          <div class="calc-ctrl-group">
+            <label class="calc-label">FAULTED MACHINE</label>
+            <select id="calc-machine-sel" class="calc-machine-select">
+              <!-- Populated by JS from LINE_ROUTES -->
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="calc-body">
+        <div class="calc-sankey-col">
+          <div class="calc-sankey-labels">
+            <span>Faulted Machine</span>
+            <span>Downstream Starved</span>
+            <span>Business Impact</span>
+          </div>
+          <div id="sankey-wrap" class="sankey-wrap"></div>
+        </div>
+        <div class="calc-impact-cards" id="calc-impact-cards"></div>
+      </div>
+    </div>
+
+    <div class="downtime-layout">
+      <div class="downtime-main">
+        <div class="section-header">
+          <div class="section-title">Downtime Pareto</div>
+          <div class="section-sub">Hours by root cause — current shift</div>
+        </div>
+        <div class="chart-card">
+          <canvas id="pareto-chart" height="120"></canvas>
+        </div>
+
+        <div class="section-header">
+          <div class="section-title">Machine MTBF / MTTR</div>
+          <div class="section-sub">Mean time between failures · mean time to repair</div>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Machine</th>
+                <th>MTBF (hrs)</th>
+                <th>MTTR (hrs)</th>
+                <th>Failures YTD</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="mtbf-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="downtime-sidebar">
+        <div class="section-header">
+          <div class="section-title">Active Alarms</div>
+          <div class="section-sub" id="alarm-count-label">— active</div>
+        </div>
+        <div class="alarm-list" id="alarm-list"></div>
+      </div>
+    </div>
+
+  </div><!-- /downtime -->
+
+
+  <!-- ═══════════════════ PREDICTIVE MAINTENANCE ══════════════════════════ -->
+  <div id="tab-maintenance" class="tab-panel hidden">
+
+    <div class="pdm-header-row">
+      <div>
+        <div class="section-title">Predictive Maintenance — Failure Risk</div>
+        <div class="section-sub">GradientBoosting classifier · <code>demo_nah_catalog.mfg_gold.machine_sensor_history</code> · 9 sensor features · 6,500 training samples</div>
+      </div>
+      <div class="pdm-header-right">
+        <div class="pdm-summary-pills" id="pdm-summary-pills"></div>
+        <div class="pdm-model-tag" id="pdm-model-tag">predictive-maintenance</div>
+      </div>
+    </div>
+
+    <div class="pdm-grid" id="pdm-grid">
+      <div class="pdm-loading">
+        <div class="spinner sm"></div> Loading failure predictions…
+      </div>
+    </div>
+
+  </div><!-- /maintenance -->
+
+
+  <!-- ═══════════════════ QUALITY ══════════════════════════════════════════ -->
+  <div id="tab-quality" class="tab-panel hidden">
+
+    <!-- ── Vision AI Defect Detection ──────────────────────────────────── -->
+    <div class="vision-section">
+      <div class="vision-section-header">
+        <div>
+          <div class="section-title">Vision AI — E-Coat Defect Detection</div>
+          <div class="section-sub">Databricks Model Serving · UC Volume: <code>demo_nah_catalog.mfg_vision.inspection_images</code> · 10 body panels · current carrier lot</div>
+        </div>
+        <div class="vision-header-right">
+          <div class="vision-model-tag" id="vision-model-tag">databricks-ecoat-defect-v2</div>
+          <button class="btn-run-vision" id="vision-run-btn" onclick="runAllInspections()">Run Inspection Batch</button>
+        </div>
+      </div>
+      <div class="vision-grid" id="vision-grid">
+        <!-- Populated by JS -->
+      </div>
+      <div class="vision-summary hidden" id="vision-summary">
+        <span class="vsumm-stat vsumm-pass" id="vsumm-pass">— PASS</span>
+        <span class="vsumm-stat vsumm-fail" id="vsumm-fail">— DEFECT</span>
+        <span class="vsumm-stat vsumm-total" id="vsumm-total">— INSPECTED</span>
+        <span class="vsumm-stat vsumm-model" id="vsumm-model">—</span>
+      </div>
+
+      <!-- Production Impact Analysis — auto-shown for defective panels -->
+      <div class="impact-panel hidden" id="impact-panel">
+        <div class="impact-panel-header">
+          <div class="impact-panel-title">Production Impact Analysis</div>
+          <div class="impact-panel-sub">Machine time &amp; materials per defective panel</div>
+        </div>
+        <div class="impact-cards" id="impact-cards"></div>
+      </div>
+    </div>
+
+    <!-- ── Quality KPIs ─────────────────────────────────────────────────── -->
+    <div class="kpi-row" style="margin-top:20px;">
+      <div class="kpi-card">
+        <div class="kpi-label">First Pass Yield</div>
+        <div class="kpi-value" id="q-fpy">—</div>
+        <div class="kpi-bar-wrap"><div class="kpi-bar" id="q-fpy-bar"></div></div>
+        <div class="kpi-sub">Target: 99.0%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Scrap Rate</div>
+        <div class="kpi-value red" id="q-scrap">—</div>
+        <div class="kpi-sub">units scrapped this shift</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Rework Rate</div>
+        <div class="kpi-value yellow" id="q-rework">—</div>
+        <div class="kpi-sub">units reworked this shift</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Units Inspected</div>
+        <div class="kpi-value normal" id="q-inspected">—</div>
+        <div class="kpi-sub">this shift</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Units Passed</div>
+        <div class="kpi-value green" id="q-passed">—</div>
+        <div class="kpi-sub">first time pass</div>
+      </div>
+    </div>
+
+    <div class="quality-layout" style="margin-top:12px;">
+      <div class="quality-main">
+        <div class="section-header">
+          <div class="section-title">Defect Pareto</div>
+          <div class="section-sub">Top defect types — current shift</div>
+        </div>
+        <div class="chart-card">
+          <canvas id="defect-chart" height="120"></canvas>
+        </div>
+      </div>
+
+      <div class="quality-sidebar">
+        <div class="section-header">
+          <div class="section-title">Defect Distribution</div>
+        </div>
+        <div class="chart-card" style="padding:16px;">
+          <canvas id="defect-donut" height="200"></canvas>
+        </div>
+
+        <div class="section-header" style="margin-top:8px;">
+          <div class="section-title">Quality by Product</div>
+        </div>
+        <div class="product-quality-cards">
+          <div class="pq-card">
+            <div class="pq-badge ppu">VBA</div>
+            <div class="pq-name">Vehicle Body Assemblies</div>
+            <div class="pq-fpy pq-fpy-red">FPY 71.2%</div>
+            <div class="pq-detail">124 weld porosity · 52 hemming dim.</div>
+          </div>
+          <div class="pq-card">
+            <div class="pq-badge dla">PBU</div>
+            <div class="pq-name">Painted Body Units</div>
+            <div class="pq-fpy pq-fpy-red">FPY 68.4%</div>
+            <div class="pq-detail">187 E-Coat adhesion · 28 contamination</div>
+          </div>
+          <div class="pq-card">
+            <div class="pq-badge gam">PTM</div>
+            <div class="pq-name">Powertrain Modules</div>
+            <div class="pq-fpy pq-fpy-yellow">FPY 82.1%</div>
+            <div class="pq-detail">88 torque non-conf. · 10 other</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /quality -->
+
+
+  <!-- ═══════════════════ ASK SHIFT ════════════════════════════════════════ -->
+  <div id="tab-shift" class="tab-panel hidden">
+
+    <div class="shift-panel">
+      <div class="shift-chat-body">
+        <div class="shift-chat-inner">
+
+          <div id="shift-starters">
+            <div class="shift-welcome">
+              <div class="shift-welcome-icon">
+                <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="48" height="48">
+                  <rect width="48" height="48" rx="12" fill="#1A0500"/>
+                  <path d="M24 8L8 17v8l16 9 16-9v-8L24 8z" fill="#FF3621"/>
+                  <path d="M8 25v8l16 9 16-9v-8l-16 9-16-9z" fill="#FF6B35" opacity="0.8"/>
+                </svg>
+              </div>
+              <div class="shift-welcome-title">SHIFT <span>Intelligence</span></div>
+              <div class="shift-welcome-sub">
+                Agentic AI for Databricks manufacturing — powered by Genie &amp; LLM.<br>
+                Query live OEE, machine health, quality, and downtime data from your Delta Lake.
+              </div>
+              <div class="shift-caps">
+                <div class="shift-cap"><span>⚡</span> Live Delta Lake</div>
+                <div class="shift-cap"><span>🤖</span> Genie NL Query</div>
+                <div class="shift-cap"><span>🔮</span> Predictive AI</div>
+                <div class="shift-cap"><span>📊</span> Root Cause</div>
+              </div>
+            </div>
+
+            <div class="shift-suggestions">
+              <button class="shift-suggestion" onclick="setShiftQ(this)">What is causing the most downtime on Line A right now?</button>
+              <button class="shift-suggestion" onclick="setShiftQ(this)">If FAL-ASM-01 goes down for 4 hours, how many vehicles are lost?</button>
+              <button class="shift-suggestion" onclick="setShiftQ(this)">If I resolve the 3 critical faults, what will plant OEE be?</button>
+              <button class="shift-suggestion" onclick="setShiftQ(this)">What is the projected end-of-shift output for all 3 product lines?</button>
+              <button class="shift-suggestion" onclick="setShiftQ(this)">Which defect type is driving FPY loss on the Paint Shop?</button>
+              <button class="shift-suggestion" onclick="setShiftQ(this)">Which machine has the worst MTBF and what is the repair priority?</button>
+            </div>
+          </div>
+
+          <div id="shift-thread" class="convo-thread hidden"></div>
+
+          <div id="shift-loading" class="hidden" style="display:flex;align-items:center;gap:10px;padding:16px 0;color:var(--text-muted);font-size:13px;">
+            <div class="spinner sm"></div>
+            <span>SHIFT is analyzing your manufacturing data…</span>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="shift-input-area">
+        <div class="shift-input-inner">
+          <div class="shift-form">
+            <textarea class="shift-textarea" id="shift-input" rows="2"
+              placeholder="Ask about OEE, downtime root cause, quality trends, machine health, production forecast…"></textarea>
+            <button class="shift-btn" id="shift-btn" onclick="submitShift()">Ask SHIFT</button>
+          </div>
+          <div class="shift-hint">
+            Connected to <strong>auto_mfg_catalog — Databricks IoT Pipeline</strong> · Cmd+Enter to submit
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /shift -->
+
+  <!-- ── Equipment Manuals Tab ─────────────────────────────────────────── -->
+  <div id="tab-manuals" class="tab-panel hidden">
+
+    <div class="manuals-layout">
+
+      <!-- Left: manual library cards -->
+      <div class="manuals-sidebar">
+        <div class="manuals-sidebar-title">Manual Library</div>
+        <div class="manuals-card-grid" id="manuals-card-grid">
+          <!-- populated by JS -->
+        </div>
+      </div>
+
+      <!-- Right: chat interface -->
+      <div class="manuals-chat-panel">
+        <div class="manuals-chat-header">
+          <div class="manuals-chat-icon">
+            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+              <rect width="48" height="48" rx="10" fill="#1A0500"/>
+              <path d="M24 8L8 17v8l16 9 16-9v-8L24 8z" fill="#FF3621"/>
+              <path d="M8 25v8l16 9 16-9v-8l-16 9-16-9z" fill="#FF6B35" opacity="0.8"/>
+            </svg>
+          </div>
+          <div>
+            <div class="manuals-chat-title">Equipment Manual Assistant</div>
+            <div class="manuals-chat-sub">Ask any question about your equipment — maintenance procedures, fault codes, specifications, and more.</div>
+          </div>
+        </div>
+
+        <div class="manuals-chat-body" id="manuals-chat-body">
+          <div id="manuals-starters">
+            <div class="manuals-suggestions">
+              <button class="manuals-suggestion" onclick="setManualsQ(this)">How do I resolve fault E-047 on FAL-ASM-01?</button>
+              <button class="manuals-suggestion" onclick="setManualsQ(this)">What is the PM schedule for the FANUC welding robot?</button>
+              <button class="manuals-suggestion" onclick="setManualsQ(this)">Why is die lube pressure dropping on the stamping press?</button>
+              <button class="manuals-suggestion" onclick="setManualsQ(this)">How do I calibrate the vision inspection cameras?</button>
+              <button class="manuals-suggestion" onclick="setManualsQ(this)">What does the E-Coat over-voltage alarm mean?</button>
+              <button class="manuals-suggestion" onclick="setManualsQ(this)">What are the torque specs for the transfer car encoder?</button>
+            </div>
+          </div>
+          <div id="manuals-thread" class="manuals-thread hidden"></div>
+          <div id="manuals-loading" class="hidden manuals-loading">
+            <div class="spinner sm"></div>
+            <span>Searching manual library…</span>
+          </div>
+        </div>
+
+        <div class="manuals-input-area">
+          <div class="manuals-input-inner">
+            <textarea class="manuals-textarea" id="manuals-input" rows="2"
+              placeholder="Ask about maintenance procedures, fault codes, specifications, torque values…"></textarea>
+            <button class="manuals-btn" id="manuals-btn" onclick="submitManuals()">Ask</button>
+          </div>
+          <div class="manuals-hint">
+            Powered by <strong>Databricks RAG</strong> · 10 equipment manuals · Unity Catalog Vector Search
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div><!-- /manuals -->
+
+</div><!-- /main-content -->
+
+<!-- ── Talk Track Modal ──────────────────────────────────────────────────── -->
+<div id="talk-overlay" class="talk-overlay hidden" onclick="closeTalkTrack()"></div>
+<div id="talk-modal" class="talk-modal hidden">
+  <div class="talk-modal-header">
+    <div class="talk-modal-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      60-Second Talk Track
+      <span class="talk-tab-badge" id="talk-tab-badge">—</span>
+    </div>
+    <button class="talk-modal-close" onclick="closeTalkTrack()">✕</button>
+  </div>
+  <div class="talk-modal-body" id="talk-modal-body"></div>
+</div>
+
+<!-- ── Machine Status Modal ──────────────────────────────────────────────── -->
+<div id="machine-status-overlay" class="msm-overlay hidden" onclick="closeMachineStatus()"></div>
+<div id="machine-status-modal" class="machine-status-modal hidden"></div>
+
+<!-- ── Agentic Actions Drawer ────────────────────────────────────────────── -->
+<div id="agent-overlay" class="agent-overlay hidden" onclick="closeAgentPanel()"></div>
+<div id="agent-panel" class="agent-panel hidden">
+  <div class="agent-panel-header">
+    <div class="agent-panel-title">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C12 7.8 7.8 12 2 12C7.8 12 12 16.2 12 22C12 16.2 16.2 12 22 12C16.2 12 12 7.8 12 2Z"/></svg>
+      Actions Taken
+      <span class="agent-tab-badge" id="agent-tab-badge">Live Floor</span>
+    </div>
+    <button class="agent-panel-close" onclick="closeAgentPanel()">✕</button>
+  </div>
+  <div class="agent-panel-sub">SAP &amp; Microsoft Teams integrated actions · approve to execute</div>
+  <div class="agent-actions-list" id="agent-actions-list"></div>
+</div>
+
+<!-- ── PDM Detail Modal ──────────────────────────────────────────────────── -->
+<div id="pdm-detail-overlay" class="pdm-modal-overlay hidden" onclick="closePdmDetail()"></div>
+<div id="pdm-detail-modal" class="pdm-detail-modal hidden">
+  <div class="pdm-modal-header">
+    <div class="pdm-modal-title-block">
+      <div class="pdm-modal-machine-id" id="pdm-modal-machine-id">—</div>
+      <div class="pdm-modal-machine-name" id="pdm-modal-machine-name">—</div>
+    </div>
+    <div class="pdm-modal-meta">
+      <div class="pdm-modal-sensor-label" id="pdm-modal-sensor-label">—</div>
+      <div class="pdm-modal-risk-badge" id="pdm-modal-risk-badge">—</div>
+    </div>
+    <button class="pdm-modal-close" onclick="closePdmDetail()">✕</button>
+  </div>
+  <div class="pdm-modal-body">
+    <div class="pdm-modal-chart-wrap">
+      <canvas id="pdm-ts-chart"></canvas>
+    </div>
+    <div class="pdm-modal-stats">
+      <div class="pdm-modal-stat">
+        <div class="pdm-modal-stat-label">Current Value</div>
+        <div class="pdm-modal-stat-val" id="pdm-modal-current">—</div>
+      </div>
+      <div class="pdm-modal-stat">
+        <div class="pdm-modal-stat-label">Failure Threshold</div>
+        <div class="pdm-modal-stat-val danger" id="pdm-modal-threshold">—</div>
+      </div>
+      <div class="pdm-modal-stat">
+        <div class="pdm-modal-stat-label">Failure Probability</div>
+        <div class="pdm-modal-stat-val" id="pdm-modal-prob">—</div>
+      </div>
+      <div class="pdm-modal-stat">
+        <div class="pdm-modal-stat-label">Threshold Label</div>
+        <div class="pdm-modal-stat-val" id="pdm-modal-zone-label">—</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/manufacturing/js/app.js"></script>
+</body>
+</html>

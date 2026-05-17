@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <link rel="icon" type="image/svg+xml" href="/supply-chain/favicon.svg"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Supply Chain Intelligence — Databricks</title>
+  <link rel="stylesheet" href="/supply-chain/css/styles.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="dark">
+
+<!-- ── Navigation ─────────────────────────────────────────────────────────── -->
+<nav class="nav" id="main-nav">
+  <div class="nav-brand">
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="26" height="26">
+      <rect width="48" height="48" rx="10" fill="#1A0500"/>
+      <path d="M24 8L8 17v8l16 9 16-9v-8L24 8z" fill="#FF3621"/>
+      <path d="M8 25v8l16 9 16-9v-8l-16 9-16-9z" fill="#FF6B35" opacity="0.8"/>
+    </svg>
+    <span class="nav-brand-name" id="nav-brand-name">Supply Chain Intelligence</span>
+    <span class="nav-brand-sub">Powered by Databricks</span>
+  </div>
+
+  <button class="nav-tab active" data-tab="ibp"       onclick="switchTab('ibp')">Integrated Business Planning</button>
+  <button class="nav-tab"        data-tab="inventory"  onclick="switchTab('inventory')">Inventory &amp; Logistics</button>
+  <button class="nav-tab"        data-tab="demand"     onclick="switchTab('demand')">Demand Forecasting <span class="ai-pip"></span></button>
+  <button class="nav-tab"        data-tab="orders"     onclick="switchTab('orders')">Order Processing</button>
+  <button class="nav-tab"        data-tab="ai"         onclick="switchTab('ai')">
+    Ask AI <span class="ai-pip"></span>
+  </button>
+  <button class="nav-tab"        data-tab="contact"    onclick="switchTab('contact')">Contact Us</button>
+
+  <!-- Back to portal -->
+  <a href="/portal" style="font-size:11.5px;color:rgba(255,255,255,0.35);text-decoration:none;display:flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;margin-left:auto;transition:all .15s;white-space:nowrap;"
+     onmouseover="this.style.color='#f0f0f0';this.style.borderColor='rgba(255,255,255,0.2)'"
+     onmouseout="this.style.color='rgba(255,255,255,0.35)';this.style.borderColor='rgba(255,255,255,0.08)'">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    All Apps
+  </a>
+
+  <!-- Page Timer -->
+  <div class="page-timer-wrap" id="page-timer-wrap">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+    <span id="page-timer">0:00</span>
+  </div>
+
+  <!-- AI Actions -->
+  <button class="nav-agent-btn" id="nav-agent-btn" onclick="openAgentPanel()">AI Actions</button>
+</nav>
+
+<!-- ── Talk Track FAB ────────────────────────────────────────────────────── -->
+<button class="talk-fab" id="talk-fab" onclick="openTalkTrack()" title="60-second talk track" tabindex="-1">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+  <span>Information</span>
+</button>
+
+<!-- ── Global KPI strip ───────────────────────────────────────────────────── -->
+<div class="global-kpi-strip" id="global-kpi-strip">
+  <div class="gkpi">
+    <div class="gkpi-label">Plan Attainment</div>
+    <div class="gkpi-val" id="gkpi-plan"><span class="spinner sm"></span></div>
+    <div class="gkpi-sub">vs 95% target</div>
+  </div>
+  <div class="gkpi-div"></div>
+  <div class="gkpi">
+    <div class="gkpi-label">Inventory Turns</div>
+    <div class="gkpi-val" id="gkpi-turns"><span class="spinner sm"></span></div>
+    <div class="gkpi-sub">annual rate</div>
+  </div>
+  <div class="gkpi-div"></div>
+  <div class="gkpi">
+    <div class="gkpi-label">Forecast MAPE</div>
+    <div class="gkpi-val" id="gkpi-mape"><span class="spinner sm"></span></div>
+    <div class="gkpi-sub">target &lt;10%</div>
+  </div>
+  <div class="gkpi-div"></div>
+  <div class="gkpi">
+    <div class="gkpi-label">Order Automation</div>
+    <div class="gkpi-val" id="gkpi-auto"><span class="spinner sm"></span></div>
+    <div class="gkpi-sub">of total PO volume</div>
+  </div>
+  <div class="gkpi-div"></div>
+  <div class="gkpi">
+    <div class="gkpi-label">On-Time Delivery</div>
+    <div class="gkpi-val" id="gkpi-otd"><span class="spinner sm"></span></div>
+    <div class="gkpi-sub">supplier OTD</div>
+  </div>
+  <div class="gkpi-div"></div>
+  <div class="gkpi">
+    <div class="gkpi-label">Fill Rate</div>
+    <div class="gkpi-val" id="gkpi-fill"><span class="spinner sm"></span></div>
+    <div class="gkpi-sub">customer orders</div>
+  </div>
+</div>
+
+<!-- ── Main Content ───────────────────────────────────────────────────────── -->
+<div class="main-content" id="main-content">
+
+  <!-- ─── IBP Tab ──────────────────────────────────────────────────────────── -->
+  <div id="tab-ibp" class="tab-panel">
+
+    <!-- S&OP Pipeline -->
+    <div class="sop-pipeline-card card">
+      <div class="card-header">
+        <div class="card-title">S&amp;OP Pipeline — May 2025 Cycle</div>
+        <div class="card-badge in-progress">In Progress</div>
+      </div>
+      <div class="sop-stages" id="sop-stages">
+        <div class="sop-loading"><span class="spinner sm"></span></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- Consensus vs Financial vs Capacity -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <div><div class="card-title">Consensus vs Financial Plan vs Operations Capacity</div><div class="card-sub">18-month rolling</div></div>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <div class="chart-toggle" id="ibp-plan-toggle">
+              <button class="ctog active" data-unit="$m" onclick="toggleIbpPlanUnit('$m')">$M</button>
+              <button class="ctog" data-unit="ku" onclick="toggleIbpPlanUnit('ku')">K Units</button>
+            </div>
+            <button class="card-info-btn" onclick="openChartInfo('ibp-plan')" title="Calculation details">ℹ</button>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="ibp-plan-chart"></canvas></div>
+      </div>
+
+      <!-- BU Attainment -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <div><div class="card-title">Plan Attainment by Business Unit</div><div class="card-sub">vs BU-level target %</div></div>
+          <button class="card-info-btn" onclick="openChartInfo('ibp-bu')" title="Calculation details">ℹ</button>
+        </div>
+        <div class="chart-wrap"><canvas id="ibp-bu-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Risk Register -->
+    <div class="card">
+      <div class="card-header">
+        <div><div class="card-title">Risk Register</div><div class="card-sub">Items requiring S&amp;OP resolution</div></div>
+        <button class="add-item-btn" onclick="openAddRisk()">+ Add Item</button>
+      </div>
+      <table class="data-table" id="ibp-risk-table">
+        <thead><tr><th>Risk Item</th><th>Impact</th><th>Value at Risk</th><th>Owner</th><th>Mitigation Step</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+  </div><!-- /ibp -->
+
+  <!-- ─── Inventory Tab ────────────────────────────────────────────────────── -->
+  <div id="tab-inventory" class="tab-panel hidden">
+
+    <div class="tab-kpi-row">
+      <div class="kpi-card" id="inv-k1"><div class="kpi-label">Inventory Turns</div><div class="kpi-val spinner-wrap"><span class="spinner sm"></span></div><div class="kpi-sub">annual rate</div></div>
+      <div class="kpi-card" id="inv-k2"><div class="kpi-label">Days on Hand</div><div class="kpi-val spinner-wrap"><span class="spinner sm"></span></div><div class="kpi-sub">average across DCs</div></div>
+      <div class="kpi-card" id="inv-k3"><div class="kpi-label">Fill Rate</div><div class="kpi-val spinner-wrap"><span class="spinner sm"></span></div><div class="kpi-sub">customer orders</div></div>
+      <div class="kpi-card inv-alert" id="inv-k4"><div class="kpi-label">Excess Inventory</div><div class="kpi-val spinner-wrap"><span class="spinner sm"></span></div><div class="kpi-sub">$M value at risk</div></div>
+    </div>
+
+    <div class="two-col">
+      <!-- SKU Health Donut -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <div><div class="card-title">SKU Health — 6,247 Active SKUs</div><div class="card-sub">by inventory position</div></div>
+          <button class="card-info-btn" onclick="openChartInfo('inv-health')" title="Calculation details">ℹ</button>
+        </div>
+        <div class="chart-wrap donut-wrap">
+          <canvas id="inv-health-chart"></canvas>
+          <div class="donut-center" id="inv-donut-center">
+            <div class="donut-num">6,247</div>
+            <div class="donut-label">Total SKUs</div>
+          </div>
+        </div>
+        <div class="legend-row" id="inv-health-legend"></div>
+      </div>
+
+      <!-- Warehouse Utilization -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <div><div class="card-title">Warehouse Utilization by DC</div><div class="card-sub">% capacity used · Days of Supply</div></div>
+          <button class="card-info-btn" onclick="openChartInfo('inv-warehouse')" title="Calculation details">ℹ</button>
+        </div>
+        <div class="chart-wrap"><canvas id="inv-warehouse-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Category DOS -->
+    <div class="two-col">
+      <div class="card chart-card">
+        <div class="card-header">
+          <div><div class="card-title">Days of Supply by Category</div><div class="card-sub">shaded band = optimal range</div></div>
+          <button class="card-info-btn" onclick="openChartInfo('inv-dos')" title="Calculation details">ℹ</button>
+        </div>
+        <div class="chart-wrap"><canvas id="inv-dos-chart"></canvas></div>
+      </div>
+
+      <!-- Inventory Alerts -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Inventory Alerts</div>
+          <div class="card-sub">Stockouts · Excess · At-Risk</div>
+        </div>
+        <div class="inv-alerts-list" id="inv-alerts-list">
+          <div class="spinner-wrap"><span class="spinner sm"></span></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /inventory -->
+
+  <!-- ─── Demand Tab ───────────────────────────────────────────────────────── -->
+  <div id="tab-demand" class="tab-panel hidden">
+
+    <div class="tab-kpi-row">
+      <div class="kpi-card" id="dem-k1"><div class="kpi-label">Overall MAPE</div><div class="kpi-val spinner-wrap"><span class="spinner sm"></span></div><div class="kpi-sub">target &lt;10%</div></div>
+      <div class="kpi-card" id="dem-k2"><div class="kpi-label">Forecast Bias</div><div class="kpi-val spinner-wrap"><span class="spinner sm"></span></div><div class="kpi-sub">negative = under-forecast</div></div>
+      <div class="kpi-card" id="dem-k3"><div class="kpi-label">Forecast Value Add</div><div class="kpi-val spinner-wrap"><span class="spinner sm"></span></div><div class="kpi-sub">vs naïve model</div></div>
+      <div class="kpi-card" id="dem-k4"><div class="kpi-label">SKUs Forecast</div><div class="kpi-val spinner-wrap"><span class="spinner sm"></span></div><div class="kpi-sub">active items</div></div>
+    </div>
+
+    <div class="two-col">
+      <!-- Forecast vs Actual -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <div><div class="card-title">Forecast vs Actual — 12 Months</div><div class="card-sub">units · all SKUs</div></div>
+          <button class="card-info-btn" onclick="openChartInfo('dem-fa')" title="Calculation details">ℹ</button>
+        </div>
+        <div class="chart-wrap"><canvas id="dem-fa-chart"></canvas></div>
+      </div>
+
+      <!-- MAPE by Category -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <div><div class="card-title">MAPE by Category</div><div class="card-sub">% · target line at 10%</div></div>
+          <button class="card-info-btn" onclick="openChartInfo('dem-mape')" title="Calculation details">ℹ</button>
+        </div>
+        <div class="chart-wrap"><canvas id="dem-mape-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- MAPE Trend + Top Errors -->
+    <div class="two-col">
+      <div class="card chart-card">
+        <div class="card-header">
+          <div><div class="card-title">MAPE Trend — Last 12 Months</div><div class="card-sub">improving trajectory</div></div>
+          <button class="card-info-btn" onclick="openChartInfo('dem-trend')" title="Calculation details">ℹ</button>
+        </div>
+        <div class="chart-wrap"><canvas id="dem-trend-chart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Top SKUs by Forecast Error</div>
+          <div class="card-sub">highest MAPE · last period</div>
+        </div>
+        <table class="data-table" id="dem-errors-table">
+          <thead><tr><th>SKU</th><th>Description</th><th>MAPE</th><th>Bias %</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /demand -->
+
+  <!-- ─── Orders Tab ───────────────────────────────────────────────────────── -->
+  <div id="tab-orders" class="tab-panel hidden">
+
+    <div class="tab-kpi-row">
+      <div class="kpi-card" id="ord-k1"><div class="kpi-label">Automation Rate</div><div class="kpi-val spinner-wrap"><span class="spinner sm"></span></div><div class="kpi-sub">of total PO volume</div></div>
+      <div class="kpi-card" id="ord-k2"><div class="kpi-label">Avg Cycle Time</div><div class="kpi-val spinner-wrap"><span class="spinner sm"></span></div><div class="kpi-sub">hours order-to-confirm</div></div>
+      <div class="kpi-card ord-alert" id="ord-k3"><div class="kpi-label">Open Exceptions</div><div class="kpi-val spinner-wrap"><span class="spinner sm"></span></div><div class="kpi-sub">requiring manual review</div></div>
+      <div class="kpi-card" id="ord-k4"><div class="kpi-label">On-Time Delivery</div><div class="kpi-val spinner-wrap"><span class="spinner sm"></span></div><div class="kpi-sub">supplier OTD</div></div>
+    </div>
+
+    <div class="two-col">
+      <!-- Order Volume Stacked Bar -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <div><div class="card-title">Order Volume — Automated vs Manual</div><div class="card-sub">monthly POs · 12 months</div></div>
+          <button class="card-info-btn" onclick="openChartInfo('ord-vol')" title="Calculation details">ℹ</button>
+        </div>
+        <div class="chart-wrap"><canvas id="ord-vol-chart"></canvas></div>
+      </div>
+
+      <!-- Exception Queue -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Exception Queue</div>
+          <div class="card-sub">47 open · $402K held</div>
+        </div>
+        <div class="exception-list" id="exception-list">
+          <div class="spinner-wrap"><span class="spinner sm"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Automation Trend + Supplier OTD -->
+    <div class="two-col">
+      <div class="card chart-card">
+        <div class="card-header">
+          <div><div class="card-title">Automation Rate Trend</div><div class="card-sub">12-month trajectory</div></div>
+          <button class="card-info-btn" onclick="openChartInfo('ord-auto')" title="Calculation details">ℹ</button>
+        </div>
+        <div class="chart-wrap"><canvas id="ord-auto-chart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Supplier On-Time Delivery</div>
+          <div class="card-sub">ranked by OTD %</div>
+        </div>
+        <table class="data-table" id="ord-supplier-table">
+          <thead><tr><th>Supplier</th><th>Country</th><th>OTD %</th><th>Open POs</th><th>Spend $M</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /orders -->
+
+  <!-- ─── AI Tab ───────────────────────────────────────────────────────────── -->
+  <div id="tab-ai" class="tab-panel hidden">
+    <div class="ai-panel">
+      <div class="ai-chat-body">
+        <div class="ai-chat-inner">
+
+          <div id="ai-starters">
+            <div class="ai-welcome">
+              <div class="ai-welcome-title">Supply Chain AI <span>Intelligence</span></div>
+              <div class="ai-welcome-sub">
+                Natural language access to your IBP, inventory, demand, and order data.<br>
+                Powered by Databricks Genie &amp; LLM — grounded in your Delta Lake.
+              </div>
+              <div class="ai-caps">
+                <div class="ai-cap">IBP &amp; S&amp;OP</div>
+                <div class="ai-cap">Inventory</div>
+                <div class="ai-cap">Demand AI</div>
+                <div class="ai-cap">Orders</div>
+              </div>
+            </div>
+            <div class="ai-suggestions">
+              <button class="ai-suggestion" onclick="setAiQ(this)">What is causing our EMEA plan attainment gap?</button>
+              <button class="ai-suggestion" onclick="setAiQ(this)">Which SKUs are at stockout risk this week?</button>
+              <button class="ai-suggestion" onclick="setAiQ(this)">What is driving the forecast error on FG-55102?</button>
+              <button class="ai-suggestion" onclick="setAiQ(this)">If I resolve the Pacific Components exceptions, what happens to automation rate?</button>
+              <button class="ai-suggestion" onclick="setAiQ(this)">How much revenue is at risk from current inventory gaps?</button>
+              <button class="ai-suggestion" onclick="setAiQ(this)">What is the projected order automation rate next quarter?</button>
+            </div>
+          </div>
+
+          <div id="ai-thread" class="ai-thread hidden"></div>
+
+          <div id="ai-loading" class="hidden" style="display:flex;align-items:center;gap:10px;padding:16px 0;color:var(--text-muted);font-size:13px;">
+            <div class="spinner sm"></div>
+            <span>Analyzing your supply chain data…</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ai-input-area">
+        <div class="ai-input-inner">
+          <div class="ai-form">
+            <textarea class="ai-textarea" id="ai-input" rows="2"
+              placeholder="Ask about S&OP, inventory positions, demand forecasts, order automation…"></textarea>
+            <button class="ai-btn" id="ai-btn" onclick="submitAi()">Ask AI</button>
+          </div>
+          <div class="ai-hint">
+            Connected to <strong>supply_chain_catalog — Databricks Delta Lake</strong> · Cmd+Enter to submit
+            · <a href="#" onclick="diagnoseGenie();return false;" style="color:var(--accent);text-decoration:none;">Diagnose Genie</a>
+          </div>
+          <div id="genie-diag" class="hidden" style="margin-top:10px;padding:12px 14px;background:var(--bg-2);border:1px solid var(--border-1);border-radius:8px;font-size:12px;font-family:monospace;white-space:pre-wrap;color:var(--text-2);max-height:260px;overflow:auto;"></div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /ai -->
+
+  <!-- ─── Contact Tab ─────────────────────────────────────────────────────── -->
+  <div id="tab-contact" class="tab-panel hidden">
+    <div style="max-width:640px;margin:0 auto;padding:16px 0 48px;">
+      <div class="card" style="padding:32px 36px;">
+        <div class="card-header" style="margin-bottom:24px;">
+          <div>
+            <div class="card-title">Get in Touch</div>
+            <div class="card-sub">Tell us about your use case and we'll follow up with next steps.</div>
+          </div>
+        </div>
+
+        <div id="contact-success" style="display:none;padding:16px 20px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.25);border-radius:10px;color:#10b981;font-size:14px;margin-bottom:24px;">
+          Thanks! Your message has been received. We'll be in touch shortly.
+        </div>
+
+        <form id="contact-form" onsubmit="submitContact(event)">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div>
+              <label class="form-label">Full Name</label>
+              <input id="cf-name" class="form-input" type="text" placeholder="Jane Smith" required/>
+            </div>
+            <div>
+              <label class="form-label">Company</label>
+              <input id="cf-company" class="form-input" type="text" placeholder="Acme Corp" required/>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+            <div>
+              <label class="form-label">Work Email</label>
+              <input id="cf-email" class="form-input" type="email" placeholder="you@company.com" required/>
+            </div>
+            <div>
+              <label class="form-label">Job Title / Role</label>
+              <input id="cf-role" class="form-input" type="text" placeholder="VP Supply Chain"/>
+            </div>
+          </div>
+          <div style="margin-bottom:16px;">
+            <label class="form-label">Primary Area of Interest</label>
+            <select id="cf-interest" class="form-input">
+              <option value="">Select an area…</option>
+              <option value="Integrated Business Planning">Integrated Business Planning (IBP / S&amp;OP)</option>
+              <option value="Inventory & Logistics">Inventory &amp; Logistics Optimization</option>
+              <option value="Demand Forecasting">Demand Forecasting &amp; AI</option>
+              <option value="Order Processing Automation">Order Processing Automation</option>
+              <option value="Full Platform">Full Supply Chain Platform</option>
+            </select>
+          </div>
+          <div style="margin-bottom:24px;">
+            <label class="form-label">Questions or Comments</label>
+            <textarea id="cf-message" class="form-input" rows="4"
+              placeholder="Tell us about your current challenges, data environment, or what you'd like to explore…"
+              style="resize:vertical;min-height:90px;font-family:inherit;"></textarea>
+          </div>
+          <div style="display:flex;gap:10px;">
+            <button class="form-submit" type="submit" id="contact-submit-btn">Send Message</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Databricks context -->
+      <div style="margin-top:20px;padding:20px 24px;background:rgba(27,111,235,0.07);border:1px solid rgba(27,111,235,0.18);border-radius:12px;">
+        <div style="font-size:12px;font-weight:700;color:var(--accent-blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Built on Databricks</div>
+        <p style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin:0;">
+          This platform runs on the Databricks Data Intelligence Platform — Delta Lake for unified data,
+          Databricks SQL for real-time analytics, Genie for natural language queries, and Lakebase
+          for operational writes. All your supply chain data in one governed lakehouse.
+        </p>
+      </div>
+    </div>
+  </div><!-- /contact -->
+
+</div><!-- /main-content -->
+
+<!-- ── Powered by Databricks footer ──────────────────────────────────────── -->
+<div style="margin-left:0;padding:18px 32px;border-top:1px solid var(--border-1);display:flex;align-items:center;justify-content:center;gap:10px;background:var(--bg-main);">
+  <svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="48" height="48" rx="10" fill="#1A0500"/>
+    <path d="M24 8L8 17v8l16 9 16-9v-8L24 8z" fill="#FF3621"/>
+    <path d="M8 25v8l16 9 16-9v-8l-16 9-16-9z" fill="#FF6B35" opacity="0.8"/>
+  </svg>
+  <span style="font-size:12px;color:var(--text-muted);">Powered by <strong style="color:var(--text-secondary);">Databricks</strong> — Delta Lake · SQL Warehouse · Genie AI · Lakebase</span>
+</div>
+
+<!-- ── Talk Track Modal ───────────────────────────────────────────────────── -->
+<div id="talk-overlay" class="talk-overlay hidden" onclick="closeTalkTrack()"></div>
+<div id="talk-modal" class="talk-modal hidden">
+  <div class="talk-modal-header">
+    <div class="talk-modal-title">
+      Information
+      <span class="talk-tab-badge" id="talk-tab-badge">—</span>
+    </div>
+    <button class="talk-modal-close" onclick="closeTalkTrack()">✕</button>
+  </div>
+  <div class="talk-modal-body" id="talk-modal-body"></div>
+</div>
+
+<!-- ── Actions Drawer ─────────────────────────────────────────────────────── -->
+<div id="agent-overlay" class="agent-overlay hidden" onclick="closeAgentPanel()"></div>
+<div id="agent-panel" class="agent-panel hidden">
+  <div class="agent-panel-header">
+    <div class="agent-panel-title">
+      AI Actions
+      <span class="agent-tab-badge" id="agent-tab-badge">IBP</span>
+    </div>
+    <button class="agent-panel-close" onclick="closeAgentPanel()">✕</button>
+  </div>
+  <div class="agent-panel-sub" id="agent-panel-sub">AI-powered actions · approve to execute</div>
+  <div class="agent-actions-list" id="agent-actions-list"></div>
+</div>
+
+<!-- ── Drill-down Modal ───────────────────────────────────────────────────── -->
+<div id="drill-overlay" class="drill-overlay hidden" onclick="closeDrill()"></div>
+<div id="drill-modal" class="drill-modal hidden">
+  <div class="drill-header">
+    <div class="drill-title" id="drill-title"></div>
+    <button class="drill-close" onclick="closeDrill()">✕</button>
+  </div>
+  <div class="drill-body" id="drill-body"></div>
+</div>
+
+<script src="/supply-chain/js/app.js"></script>
+</body>
+</html>

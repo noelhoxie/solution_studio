@@ -1,0 +1,72 @@
+command:
+  - "sh"
+  - "-c"
+  - "gunicorn --bind 0.0.0.0:$DATABRICKS_APP_PORT --workers 2 --worker-class gthread --threads 4 --timeout 180 api:app"
+
+resources:
+  - name: sql-warehouse
+    description: Shared SQL Warehouse for all Solution Studio sub-apps
+    sql_warehouse:
+      id: 17e5cb93c5f1758e
+      permission: CAN_USE
+
+env:
+  # ── Shared ──────────────────────────────────────────────────────────────────
+  - name: DATABRICKS_HOST
+    value: "https://fevm-solution-studio.cloud.databricks.com"
+  - name: COMPANY_NAME
+    value: ""
+
+  # ── Lakebase ─────────────────────────────────────────────────────────────────
+  - name: LAKEBASE_HOST
+    value: "ep-fragrant-resonance-d2ojfexl.database.us-east-1.cloud.databricks.com"
+  - name: LAKEBASE_PORT
+    value: "5432"
+  - name: LAKEBASE_DB
+    value: "databricks_postgres"
+  - name: LAKEBASE_USER
+    value: "noel.hoxie@databricks.com"
+  - name: LAKEBASE_ENDPOINT
+    value: "projects/solution-studio-analytics/branches/production/endpoints/primary"
+  - name: LAKEBASE_DATABRICKS_TOKEN
+    value: ""
+
+  # ── Supply Chain (/supply-chain/) ───────────────────────────────────────────
+  - name: SC_GENIE_SPACE_ID
+    value: "01f14ba20d4418d280e60f29772adfe6"
+  - name: SC_LLM_ENDPOINT
+    value: "databricks-meta-llama-3-3-70b-instruct"
+  - name: SC_SQL_WAREHOUSE_HTTP_PATH
+    value: "/sql/1.0/warehouses/17e5cb93c5f1758e"
+
+  # ── Manufacturing (/manufacturing/) ─────────────────────────────────────────
+  - name: MFG_GENIE_SPACE_ID
+    value: ""
+  - name: MFG_LLM_ENDPOINT
+    value: "databricks-meta-llama-3-3-70b-instruct"
+  - name: MFG_SQL_WAREHOUSE_HTTP_PATH
+    value: "/sql/1.0/warehouses/17e5cb93c5f1758e"
+  - name: MFG_VISION_ENDPOINT
+    value: "vision"
+  - name: MFG_PDM_ENDPOINT
+    value: "predictive-maintenance"
+  - name: MFG_MANUALS_ENDPOINT
+    value: "mfg-manuals-rag"
+  - name: MFG_UC_CATALOG
+    value: "solution_studio_catalog"
+  - name: MFG_UC_SCHEMA
+    value: "mfg_vision"
+  - name: MFG_UC_VOLUME
+    value: "inspection_images"
+
+  # ── Finance (/finance/) ──────────────────────────────────────────────────────
+  - name: FIN_GENIE_SPACE_ID
+    value: ""
+  - name: FIN_WAREHOUSE_ID
+    value: "17e5cb93c5f1758e"
+  - name: FIN_CATALOG
+    value: "solution_studio_catalog"
+  - name: FIN_GOLD_SCHEMA
+    value: "duracell_finance_gold"
+  - name: FIN_GOOGLE_API_KEY
+    value: ""

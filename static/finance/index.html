@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/finance/favicon.svg"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance Intelligence</title>
+  <link rel="stylesheet" href="/finance/css/styles.css" />
+</head>
+<body>
+
+<!-- ── Nav ────────────────────────────────────────────────────────────────── -->
+<nav class="fin-nav">
+  <div class="nav-brand">
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="26" height="26">
+      <rect width="48" height="48" rx="10" fill="#1A1A2E"/>
+      <path d="M24 10L10 18v8l14 8 14-8v-8L24 10z" fill="#D4A017"/>
+      <path d="M10 26v8l14 8 14-8v-8l-14 8-14-8z" fill="#8B6914" opacity="0.8"/>
+    </svg>
+    <span class="nav-brand-name">Finance Intelligence</span>
+    <span class="nav-brand-sub">Powered by Databricks</span>
+  </div>
+
+  <button class="nav-tab active" data-tab="pl"              onclick="switchTab('pl')">P&amp;L Overview</button>
+  <button class="nav-tab"        data-tab="working-capital" onclick="switchTab('working-capital')">Working Capital</button>
+  <button class="nav-tab"        data-tab="cashflow"        onclick="switchTab('cashflow')">Cash Flow</button>
+  <button class="nav-tab"        data-tab="cost"            onclick="switchTab('cost')">Cost Management</button>
+  <button class="nav-tab"        data-tab="genie"           onclick="switchTab('genie')">
+    Finance Genie <span class="ai-pip"></span>
+  </button>
+
+  <div class="page-timer-wrap" id="page-timer-wrap">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+    <span id="page-timer">0:00</span>
+  </div>
+</nav>
+
+<!-- ── Global KPI Strip ────────────────────────────────────────────────────── -->
+<div class="global-kpi-strip">
+  <div class="gkpi">
+    <div class="gkpi-label">Q1 2025 Revenue</div>
+    <div class="gkpi-val" id="gkpi-revenue">—</div>
+  </div>
+  <div class="gkpi-div"></div>
+  <div class="gkpi">
+    <div class="gkpi-label">EBITDA</div>
+    <div class="gkpi-val" id="gkpi-ebitda">—</div>
+  </div>
+  <div class="gkpi-div"></div>
+  <div class="gkpi">
+    <div class="gkpi-label">EBITDA Margin</div>
+    <div class="gkpi-val" id="gkpi-margin">—</div>
+  </div>
+  <div class="gkpi-div"></div>
+  <div class="gkpi">
+    <div class="gkpi-label">vs Budget</div>
+    <div class="gkpi-val" id="gkpi-vs-budget">—</div>
+  </div>
+  <div class="gkpi-div"></div>
+  <div class="gkpi">
+    <div class="gkpi-label">Free Cash Flow</div>
+    <div class="gkpi-val" id="gkpi-fcf">—</div>
+  </div>
+</div>
+
+<!-- ── Main Content ────────────────────────────────────────────────────────── -->
+<div class="fin-main">
+
+  <!-- ── P&L Overview Tab ─────────────────────────────────────────────────── -->
+  <div id="tab-pl" class="tab-panel">
+
+    <div class="tab-kpi-row">
+      <div class="kpi-card"><div class="kpi-label">Revenue</div><div class="kpi-val" id="kpi-revenue">—</div><div class="kpi-sub">Q1 2025</div></div>
+      <div class="kpi-card"><div class="kpi-label">EBITDA</div><div class="kpi-val" id="kpi-ebitda">—</div><div class="kpi-sub">Q1 2025</div></div>
+      <div class="kpi-card"><div class="kpi-label">EBITDA Margin</div><div class="kpi-val" id="kpi-margin">—</div><div class="kpi-sub">target 24%</div></div>
+      <div class="kpi-card"><div class="kpi-label">vs Budget</div><div class="kpi-val" id="kpi-vs-budget">—</div><div class="kpi-sub">revenue variance</div></div>
+    </div>
+
+    <div class="two-col">
+      <!-- Gemini Executive Briefing -->
+      <div class="card briefing-card">
+        <div class="card-header">
+          <div class="card-title-row">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" class="gemini-icon">
+              <path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5Z" fill="#D4A017"/>
+            </svg>
+            <span class="card-title">Executive Briefing</span>
+            <span class="card-sub">Gemini 2.0 Flash · Live data</span>
+          </div>
+          <button class="btn-refresh" id="btn-refresh-briefing" title="Regenerate">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5"/>
+            </svg>
+          </button>
+        </div>
+        <div class="briefing-body" id="briefing-text">
+          <div class="skeleton-lines">
+            <div class="skel"></div><div class="skel w80"></div>
+            <div class="skel w90"></div><div class="skel w70"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Revenue & EBITDA Trend -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <span class="card-title">Revenue &amp; EBITDA Trend</span>
+          <span class="card-sub">Q1 2023 – Q1 2025</span>
+        </div>
+        <div class="chart-wrap">
+          <svg id="trend-chart" width="100%" height="130" viewBox="0 0 460 130" preserveAspectRatio="none"></svg>
+          <div class="chart-legend">
+            <span class="leg-item"><span class="leg-dot gold"></span>Revenue</span>
+            <span class="leg-item"><span class="leg-dot green"></span>EBITDA</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /pl -->
+
+  <!-- ── Working Capital Tab ──────────────────────────────────────────────── -->
+  <div id="tab-working-capital" class="tab-panel hidden">
+
+    <div class="tab-kpi-row">
+      <div class="kpi-card"><div class="kpi-label">Avg DSO</div><div class="kpi-val" id="wc-k1">—</div><div class="kpi-sub">days sales outstanding</div></div>
+      <div class="kpi-card"><div class="kpi-label">Avg DPO</div><div class="kpi-val" id="wc-k2">—</div><div class="kpi-sub">days payable outstanding</div></div>
+      <div class="kpi-card"><div class="kpi-label">Blended CCC</div><div class="kpi-val" id="wc-k3">—</div><div class="kpi-sub">cash conversion cycle</div></div>
+      <div class="kpi-card"><div class="kpi-label">AR 90+ Days</div><div class="kpi-val" id="wc-k4">—</div><div class="kpi-sub">past due · avg across regions</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Working Capital by Region</div>
+          <div class="card-sub">DSO · DPO · CCC · AR Aging · Q1 2025</div>
+        </div>
+      </div>
+      <div id="wc-table-wrap">
+        <table class="wc-table">
+          <thead><tr><th>Region</th><th>DSO</th><th>DPO</th><th>CCC</th><th>AR 90+</th></tr></thead>
+          <tbody id="wc-tbody">
+            <tr><td colspan="5" class="loading-cell">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /working-capital -->
+
+  <!-- ── Cash Flow Tab ────────────────────────────────────────────────────── -->
+  <div id="tab-cashflow" class="tab-panel hidden">
+
+    <div class="tab-kpi-row">
+      <div class="kpi-card"><div class="kpi-label">Operating CF</div><div class="kpi-val" id="cf-k1">—</div><div class="kpi-sub">Q1 2025</div></div>
+      <div class="kpi-card"><div class="kpi-label">Capex</div><div class="kpi-val" id="cf-k2">—</div><div class="kpi-sub">Q1 2025</div></div>
+      <div class="kpi-card"><div class="kpi-label">Free Cash Flow</div><div class="kpi-val" id="cf-k3">—</div><div class="kpi-sub">Q1 2025</div></div>
+      <div class="kpi-card"><div class="kpi-label">YoY FCF Change</div><div class="kpi-val" id="cf-k4">—</div><div class="kpi-sub">vs Q1 2024</div></div>
+    </div>
+
+    <div class="two-col">
+      <!-- FCF Trend Chart -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <span class="card-title">Cash Flow Trend</span>
+          <span class="card-sub">Q1 2023 – Q1 2025</span>
+        </div>
+        <div class="chart-wrap">
+          <svg id="cf-trend-chart" width="100%" height="130" viewBox="0 0 460 130" preserveAspectRatio="none"></svg>
+          <div class="chart-legend">
+            <span class="leg-item"><span class="leg-dot" style="background:#1B6FEB"></span>Operating CF</span>
+            <span class="leg-item"><span class="leg-dot green"></span>Free CF</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- CF Breakdown Table -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Cash Flow by Quarter</div>
+          <div class="card-sub">$M · Operating · Capex · FCF</div>
+        </div>
+        <table class="wc-table" id="cf-table">
+          <thead><tr><th>Period</th><th>Operating CF</th><th>Capex</th><th>Free CF</th></tr></thead>
+          <tbody id="cf-tbody">
+            <tr><td colspan="4" class="loading-cell">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /cashflow -->
+
+  <!-- ── Cost Management Tab ──────────────────────────────────────────────── -->
+  <div id="tab-cost" class="tab-panel hidden">
+
+    <div class="tab-kpi-row">
+      <div class="kpi-card"><div class="kpi-label">Total OpEx</div><div class="kpi-val" id="cost-k1">—</div><div class="kpi-sub">Q1 2025 actual</div></div>
+      <div class="kpi-card"><div class="kpi-label">G&amp;A % Revenue</div><div class="kpi-val" id="cost-k2">—</div><div class="kpi-sub">target &lt;5%</div></div>
+      <div class="kpi-card"><div class="kpi-label">Over-Budget CCs</div><div class="kpi-val" id="cost-k3">—</div><div class="kpi-sub">cost centers</div></div>
+      <div class="kpi-card"><div class="kpi-label">Total Variance</div><div class="kpi-val" id="cost-k4">—</div><div class="kpi-sub">budget vs actual</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Cost Center Spend — Q1 2025</div>
+          <div class="card-sub">Budget vs Actual · Variance · All Departments</div>
+        </div>
+      </div>
+      <table class="wc-table" id="cost-cc-table">
+        <thead><tr><th>Cost Center</th><th>Department</th><th>Budget ($M)</th><th>Actual ($M)</th><th>Variance ($M)</th><th>Status</th></tr></thead>
+        <tbody id="cost-tbody">
+          <tr><td colspan="6" class="loading-cell">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div><!-- /cost -->
+
+  <!-- ── Finance Genie Tab ────────────────────────────────────────────────── -->
+  <div id="tab-genie" class="tab-panel hidden">
+    <div class="genie-panel">
+
+      <!-- Suggested chips -->
+      <div class="chip-row" id="chip-row">
+        <button class="chip" data-q="What is EBITDA vs. budget by business unit this quarter?">EBITDA vs. budget</button>
+        <button class="chip" data-q="Show me revenue growth year-over-year by region">Revenue YoY</button>
+        <button class="chip" data-q="What is free cash flow year-to-date?">Free cash flow</button>
+        <button class="chip" data-q="How much AR is over 90 days past due?">AR aging</button>
+        <button class="chip" data-q="Which cost centers are over budget this quarter?">Over-budget CCs</button>
+        <button class="chip" data-q="Show gross margin trend by business unit">Gross margin trend</button>
+      </div>
+
+      <!-- Messages -->
+      <div class="messages" id="messages">
+        <div class="msg msg-system">
+          <div class="msg-avatar system-avatar">
+            <svg width="16" height="16" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="48" height="48" rx="8" fill="#1A1A2E"/>
+              <path d="M24 10L10 18v8l14 8 14-8v-8L24 10z" fill="#D4A017"/>
+            </svg>
+          </div>
+          <div class="msg-bubble">
+            <p>Hello. I'm connected to the <strong>Finance Intelligence</strong> Genie space — 9 quarters of financial data (Q1 2023–Q1 2025) including P&amp;L, cash flow, working capital, and GL spend by cost center.</p>
+            <p>Ask me anything about financial performance, or use the quick questions above.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input bar -->
+      <div class="chat-input-row">
+        <input type="text" id="chat-input" class="chat-input"
+               placeholder="Ask a finance question… e.g. What is our G&amp;A as % of revenue?" />
+        <button class="btn-send" id="btn-send">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+
+    </div>
+  </div><!-- /genie -->
+
+</div><!-- /fin-main -->
+
+<!-- ── Footer ─────────────────────────────────────────────────────────────── -->
+<div class="fin-footer">
+  <svg width="14" height="14" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect width="48" height="48" rx="10" fill="#1A1A2E"/>
+    <path d="M24 10L10 18v8l14 8 14-8v-8L24 10z" fill="#D4A017"/>
+  </svg>
+  <span>Powered by <strong>Databricks</strong> — Delta Lake · SQL Warehouse · Gemini 2.0 · Lakebase</span>
+</div>
+
+<script src="/finance/js/app.js"></script>
+</body>
+</html>
