@@ -294,7 +294,23 @@ def logout():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok"})
+    lb_status = "disabled"
+    lb_error  = None
+    if _LAKEBASE_OK:
+        try:
+            with _db_connect() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT COUNT(*) FROM page_time_log")
+                    row_count = cur.fetchone()[0]
+            lb_status = "ok"
+        except Exception as e:
+            lb_status = "error"
+            lb_error  = str(e)
+    return jsonify({
+        "status":        "ok",
+        "lakebase":      lb_status,
+        "lakebase_error": lb_error,
+    })
 
 
 @app.route("/portal")
