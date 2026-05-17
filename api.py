@@ -20,13 +20,6 @@ import requests
 from flask import Flask, jsonify, redirect, request, send_from_directory, session
 
 try:
-    import psycopg2
-    import psycopg2.extras
-    _PSYCOPG2_OK = True
-except ImportError:
-    _PSYCOPG2_OK = False
-
-try:
     from databricks import sql as dbsql
     _DBSQL_OK = True
 except ImportError:
@@ -45,12 +38,10 @@ app.secret_key = _sk if _sk else hashlib.sha256(b"solution-studio-master-2024").
 DATABRICKS_HOST = os.getenv("DATABRICKS_HOST", "")
 COMPANY_NAME    = os.getenv("COMPANY_NAME", "")
 
-# Lakebase (shared)
-LAKEBASE_HOST     = os.getenv("LAKEBASE_HOST", "")
-LAKEBASE_PORT     = int(os.getenv("LAKEBASE_PORT", "5432"))
-LAKEBASE_DB       = os.getenv("LAKEBASE_DB", "databricks_postgres")
-LAKEBASE_USER     = os.getenv("LAKEBASE_USER", "")
-LAKEBASE_ENDPOINT = os.getenv("LAKEBASE_ENDPOINT", "")
+# Delta logging (shared)
+LOG_HTTP_PATH = os.getenv("LOG_HTTP_PATH") or os.getenv("SC_SQL_WAREHOUSE_HTTP_PATH", "")
+LOG_CATALOG   = os.getenv("LOG_CATALOG", "solution_studio_catalog")
+LOG_SCHEMA    = os.getenv("LOG_SCHEMA", "solution_studio_logs")
 
 # Supply chain
 SC_GENIE_SPACE_ID          = os.getenv("SC_GENIE_SPACE_ID", "")
@@ -150,58 +141,65 @@ def _genie_creds():
     return host, {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
 
-# ── Lakebase ─────────────────────────────────────────────────────────────────────
-_LAKEBASE_OK = bool(LAKEBASE_HOST) and _PSYCOPG2_OK
+# ── Delta logging ────────────────────────────────────────────────────────────────
+_DELTA_LOG_OK = _DBSQL_OK and bool(LOG_HTTP_PATH)
 
 
-def _db_connect():
-    pat = os.getenv("LAKEBASE_DATABRICKS_TOKEN") or os.getenv("DATABRICKS_TOKEN", "")
-    if not pat:
-        raise RuntimeError("No DATABRICKS_TOKEN set")
-    return psycopg2.connect(
-        host=LAKEBASE_HOST, port=LAKEBASE_PORT, dbname=LAKEBASE_DB,
-        user=LAKEBASE_USER, password=pat, sslmode="require", connect_timeout=10,
-    )
-
-
-def _ensure_page_log_table():
-    if not _LAKEBASE_OK:
-        return
+def _delta_log_write(sql, params=()):
+    if not _DELTA_LOG_OK:
+        return False
+    host = DATABRICKS_HOST.rstrip("/")
+    if "://" in host:
+        host = host.split("://", 1)[1]
+    token = os.getenv("DATABRICKS_TOKEN", "")
     try:
-        with _db_connect() as conn:
+        with dbsql.connect(server_hostname=host, http_path=LOG_HTTP_PATH, access_token=token) as conn:
             with conn.cursor() as cur:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS page_time_log (
-                        id            SERIAL PRIMARY KEY,
-                        username      TEXT,
-                        company_name  TEXT,
-                        page          TEXT,
-                        seconds_spent INTEGER,
-                        app_name      TEXT,
-                        recorded_at   TIMESTAMPTZ DEFAULT NOW()
-                    )
-                """)
-                cur.execute("ALTER TABLE page_time_log ADD COLUMN IF NOT EXISTS app_name TEXT")
-                cur.execute("ALTER TABLE page_time_log ADD COLUMN IF NOT EXISTS company_name TEXT")
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS contact_submissions (
-                        id           SERIAL PRIMARY KEY,
-                        name         TEXT,
-                        company      TEXT,
-                        email        TEXT,
-                        role         TEXT,
-                        interest     TEXT,
-                        message      TEXT,
-                        submitted_at TIMESTAMPTZ DEFAULT NOW()
-                    )
-                """)
-            conn.commit()
-        print("[Lakebase] tables ready", flush=True)
+                cur.execute(sql, params)
+        return True
     except Exception as e:
-        print(f"[Lakebase] Could not create tables: {e}", flush=True)
+        print(f"[Delta] Write failed: {e}", flush=True)
+        return False
 
 
-_ensure_page_log_table()
+def _ensure_log_tables():
+    if not _DELTA_LOG_OK:
+        return
+    host = DATABRICKS_HOST.rstrip("/")
+    if "://" in host:
+        host = host.split("://", 1)[1]
+    token = os.getenv("DATABRICKS_TOKEN", "")
+    try:
+        with dbsql.connect(server_hostname=host, http_path=LOG_HTTP_PATH, access_token=token) as conn:
+            with conn.cursor() as cur:
+                cur.execute(f"CREATE SCHEMA IF NOT EXISTS {LOG_CATALOG}.{LOG_SCHEMA}")
+                cur.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {LOG_CATALOG}.{LOG_SCHEMA}.page_time_log (
+                        username      STRING,
+                        company_name  STRING,
+                        page          STRING,
+                        seconds_spent INT,
+                        app_name      STRING,
+                        recorded_at   TIMESTAMP
+                    ) USING DELTA
+                """)
+                cur.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {LOG_CATALOG}.{LOG_SCHEMA}.contact_submissions (
+                        name         STRING,
+                        company      STRING,
+                        email        STRING,
+                        role         STRING,
+                        interest     STRING,
+                        message      STRING,
+                        submitted_at TIMESTAMP
+                    ) USING DELTA
+                """)
+        print("[Delta] Log tables ready", flush=True)
+    except Exception as e:
+        print(f"[Delta] Could not create tables: {e}", flush=True)
+
+
+_ensure_log_tables()
 
 # ── Utilities ───────────────────────────────────────────────────────────────────
 _DAY_SEED = int(time.time() / 86400)
@@ -254,23 +252,7 @@ def logout():
 
 @app.route("/health")
 def health():
-    lb_status = "disabled"
-    lb_error  = None
-    if _LAKEBASE_OK:
-        try:
-            with _db_connect() as conn:
-                with conn.cursor() as cur:
-                    cur.execute("SELECT COUNT(*) FROM page_time_log")
-                    row_count = cur.fetchone()[0]
-            lb_status = "ok"
-        except Exception as e:
-            lb_status = "error"
-            lb_error  = str(e)
-    return jsonify({
-        "status":        "ok",
-        "lakebase":      lb_status,
-        "lakebase_error": lb_error,
-    })
+    return jsonify({"status": "ok", "delta_log": "enabled" if _DELTA_LOG_OK else "disabled"})
 
 
 @app.route("/portal")
@@ -329,23 +311,13 @@ def contact():
     role     = str(data.get("role",     ""))[:120]
     interest = str(data.get("interest", ""))[:120]
     message  = str(data.get("message",  ""))[:1000]
-    if not _LAKEBASE_OK:
-        print(f"[Contact] (no DB) name={name} company={company} email={email}", flush=True)
-        return jsonify({"status": "ok", "stored": False})
-    try:
-        with _db_connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO contact_submissions "
-                    "(name, company, email, role, interest, message) "
-                    "VALUES (%s, %s, %s, %s, %s, %s)",
-                    (name, company, email, role, interest, message),
-                )
-            conn.commit()
-        return jsonify({"status": "ok", "stored": True})
-    except Exception as e:
-        print(f"[Contact] DB error: {e}", flush=True)
-        return jsonify({"status": "ok", "stored": False, "note": "logged only"})
+    stored = _delta_log_write(
+        f"INSERT INTO {LOG_CATALOG}.{LOG_SCHEMA}.contact_submissions "
+        "(name, company, email, role, interest, message, submitted_at) "
+        "VALUES (%s, %s, %s, %s, %s, %s, current_timestamp())",
+        (name, company, email, role, interest, message),
+    )
+    return jsonify({"status": "ok", "stored": stored})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -791,19 +763,13 @@ def sc_log_page_time():
     seconds = int(data.get("seconds_spent", 0))
     user    = session.get("username", "anonymous")
     company = session.get("company_name", "")
-    if not _LAKEBASE_OK:
-        return jsonify({"status": "skipped"})
-    try:
-        with _db_connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO page_time_log (username, company_name, page, seconds_spent, app_name) VALUES (%s,%s,%s,%s,%s)",
-                    (user, company, page, seconds, "Supply Chain Intelligence"),
-                )
-            conn.commit()
-        return jsonify({"status": "ok"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+    _delta_log_write(
+        f"INSERT INTO {LOG_CATALOG}.{LOG_SCHEMA}.page_time_log "
+        "(username, company_name, page, seconds_spent, app_name, recorded_at) "
+        "VALUES (%s, %s, %s, %s, %s, current_timestamp())",
+        (user, company, page, seconds, "Supply Chain Intelligence"),
+    )
+    return jsonify({"status": "ok"})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1963,19 +1929,13 @@ def mfg_log_page_time():
     seconds = int(data.get("seconds_spent", 0))
     user    = session.get("username", "anonymous")
     company = session.get("company_name", "")
-    if not _LAKEBASE_OK:
-        return jsonify({"status": "skipped"})
-    try:
-        with _db_connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO page_time_log (username, company_name, page, seconds_spent, app_name) VALUES (%s,%s,%s,%s,%s)",
-                    (user, company, page, seconds, "Manufacturing Intelligence"),
-                )
-            conn.commit()
-        return jsonify({"status": "ok"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+    _delta_log_write(
+        f"INSERT INTO {LOG_CATALOG}.{LOG_SCHEMA}.page_time_log "
+        "(username, company_name, page, seconds_spent, app_name, recorded_at) "
+        "VALUES (%s, %s, %s, %s, %s, current_timestamp())",
+        (user, company, page, seconds, "Manufacturing Intelligence"),
+    )
+    return jsonify({"status": "ok"})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2326,19 +2286,13 @@ def fin_log_page_time():
     seconds = int(data.get("seconds_spent", 0))
     user    = session.get("username", "anonymous")
     company = session.get("company_name", "")
-    if not _LAKEBASE_OK:
-        return jsonify({"status": "skipped"})
-    try:
-        with _db_connect() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO page_time_log (username, company_name, page, seconds_spent, app_name) VALUES (%s,%s,%s,%s,%s)",
-                    (user, company, page, seconds, "Finance Intelligence"),
-                )
-            conn.commit()
-        return jsonify({"status": "ok"})
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+    _delta_log_write(
+        f"INSERT INTO {LOG_CATALOG}.{LOG_SCHEMA}.page_time_log "
+        "(username, company_name, page, seconds_spent, app_name, recorded_at) "
+        "VALUES (%s, %s, %s, %s, %s, current_timestamp())",
+        (user, company, page, seconds, "Finance Intelligence"),
+    )
+    return jsonify({"status": "ok"})
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -2,6 +2,5 @@ flask>=3.0
 gunicorn>=22.0
 requests>=2.32
 databricks-sql-connector>=3.0
-psycopg2-binary>=2.9
 reportlab>=4.0
 google-generativeai>=0.8.0
