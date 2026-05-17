@@ -154,53 +154,13 @@ def _genie_creds():
 _LAKEBASE_OK = bool(LAKEBASE_HOST) and _PSYCOPG2_OK
 
 
-def _lakebase_token():
-    """Generate a Lakebase credential token via Databricks REST API."""
-    try:
-        host = (os.getenv("LAKEBASE_DATABRICKS_HOST") or
-                os.getenv("DATABRICKS_HOST", "")).rstrip("/")
-        if host and not host.startswith("http"):
-            host = f"https://{host}"
-        pat           = os.getenv("LAKEBASE_DATABRICKS_TOKEN") or os.getenv("DATABRICKS_TOKEN", "")
-        client_id     = os.getenv("DATABRICKS_CLIENT_ID", "")
-        client_secret = os.getenv("DATABRICKS_CLIENT_SECRET", "")
-        if not host:
-            print("[Lakebase] DATABRICKS_HOST not set", flush=True)
-            return None
-        if pat:
-            bearer = pat
-        elif client_id and client_secret:
-            r = requests.post(
-                f"{host}/oidc/v1/token",
-                data={"grant_type": "client_credentials", "scope": "all-apis"},
-                auth=(client_id, client_secret),
-                timeout=10,
-            )
-            r.raise_for_status()
-            bearer = r.json()["access_token"]
-        else:
-            print("[Lakebase] No auth credentials available", flush=True)
-            return None
-        r = requests.post(
-            f"{host}/api/2.0/postgres/credentials",
-            headers={"Authorization": f"Bearer {bearer}"},
-            json={"endpoint": LAKEBASE_ENDPOINT},
-            timeout=10,
-        )
-        r.raise_for_status()
-        return r.json().get("token")
-    except Exception as e:
-        print(f"[Lakebase] Token generation failed: {e}", flush=True)
-        return None
-
-
 def _db_connect():
-    tok = _lakebase_token()
-    if not tok:
-        raise RuntimeError("Could not obtain Lakebase token")
+    pat = os.getenv("LAKEBASE_DATABRICKS_TOKEN") or os.getenv("DATABRICKS_TOKEN", "")
+    if not pat:
+        raise RuntimeError("No DATABRICKS_TOKEN set")
     return psycopg2.connect(
         host=LAKEBASE_HOST, port=LAKEBASE_PORT, dbname=LAKEBASE_DB,
-        user=LAKEBASE_USER, password=tok, sslmode="require", connect_timeout=10,
+        user=LAKEBASE_USER, password=pat, sslmode="require", connect_timeout=10,
     )
 
 
