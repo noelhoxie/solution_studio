@@ -142,61 +142,59 @@ def _genie_creds():
 
 
 # ── Delta logging ────────────────────────────────────────────────────────────────
-_DELTA_LOG_OK = _DBSQL_OK and bool(LOG_HTTP_PATH)
+_DELTA_LOG_OK = bool(DATABRICKS_HOST) and bool(LOG_HTTP_PATH)
+
+
+def _delta_sql_exec(statement):
+    host  = DATABRICKS_HOST.rstrip("/")
+    token = os.getenv("DATABRICKS_TOKEN", "")
+    wh_id = LOG_HTTP_PATH.rstrip("/").split("/")[-1]
+    try:
+        r = requests.post(
+            f"{host}/api/2.0/sql/statements",
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            json={"warehouse_id": wh_id, "statement": statement, "wait_timeout": "30s"},
+            timeout=35,
+        )
+        r.raise_for_status()
+        state = r.json().get("status", {}).get("state", "")
+        if state != "SUCCEEDED":
+            print(f"[Delta] SQL state={state}: {r.json().get('status',{}).get('error','')}", flush=True)
+            return False
+        return True
+    except Exception as e:
+        print(f"[Delta] SQL error: {e}", flush=True)
+        return False
 
 
 def _delta_log_write(sql, params=()):
     if not _DELTA_LOG_OK:
         return False
-    host = DATABRICKS_HOST.rstrip("/")
-    if "://" in host:
-        host = host.split("://", 1)[1]
-    token = os.getenv("DATABRICKS_TOKEN", "")
-    try:
-        with dbsql.connect(server_hostname=host, http_path=LOG_HTTP_PATH, access_token=token) as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, params)
-        return True
-    except Exception as e:
-        print(f"[Delta] Write failed: {e}", flush=True)
-        return False
+    escaped = []
+    for p in params:
+        if isinstance(p, int):
+            escaped.append(str(p))
+        else:
+            escaped.append("'" + str(p).replace("'", "''") + "'")
+    stmt = sql % tuple(escaped) if escaped else sql
+    return _delta_sql_exec(stmt)
 
 
 def _ensure_log_tables():
     if not _DELTA_LOG_OK:
         return
-    host = DATABRICKS_HOST.rstrip("/")
-    if "://" in host:
-        host = host.split("://", 1)[1]
-    token = os.getenv("DATABRICKS_TOKEN", "")
-    try:
-        with dbsql.connect(server_hostname=host, http_path=LOG_HTTP_PATH, access_token=token) as conn:
-            with conn.cursor() as cur:
-                cur.execute(f"CREATE SCHEMA IF NOT EXISTS {LOG_CATALOG}.{LOG_SCHEMA}")
-                cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {LOG_CATALOG}.{LOG_SCHEMA}.page_time_log (
-                        username      STRING,
-                        company_name  STRING,
-                        page          STRING,
-                        seconds_spent INT,
-                        app_name      STRING,
-                        recorded_at   TIMESTAMP
-                    ) USING DELTA
-                """)
-                cur.execute(f"""
-                    CREATE TABLE IF NOT EXISTS {LOG_CATALOG}.{LOG_SCHEMA}.contact_submissions (
-                        name         STRING,
-                        company      STRING,
-                        email        STRING,
-                        role         STRING,
-                        interest     STRING,
-                        message      STRING,
-                        submitted_at TIMESTAMP
-                    ) USING DELTA
-                """)
-        print("[Delta] Log tables ready", flush=True)
-    except Exception as e:
-        print(f"[Delta] Could not create tables: {e}", flush=True)
+    _delta_sql_exec(f"CREATE SCHEMA IF NOT EXISTS {LOG_CATALOG}.{LOG_SCHEMA}")
+    _delta_sql_exec(
+        f"CREATE TABLE IF NOT EXISTS {LOG_CATALOG}.{LOG_SCHEMA}.page_time_log "
+        "(username STRING, company_name STRING, page STRING, "
+        "seconds_spent INT, app_name STRING, recorded_at TIMESTAMP) USING DELTA"
+    )
+    _delta_sql_exec(
+        f"CREATE TABLE IF NOT EXISTS {LOG_CATALOG}.{LOG_SCHEMA}.contact_submissions "
+        "(name STRING, company STRING, email STRING, role STRING, "
+        "interest STRING, message STRING, submitted_at TIMESTAMP) USING DELTA"
+    )
+    print("[Delta] Log tables ready", flush=True)
 
 
 _ensure_log_tables()
