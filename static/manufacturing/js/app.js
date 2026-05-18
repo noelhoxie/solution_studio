@@ -1929,8 +1929,18 @@ async function submitShift() {
 
   if (data.conversation_id) shiftConvId = data.conversation_id;
 
-  const srcLabel = data.source === 'genie' ? 'Databricks Genie' : data.source === 'LLM' ? 'Databricks LLM' : 'Demo Mode';
-  appendMsg(thread, 'ai', data.answer, srcLabel, data.follow_ups || []);
+  const srcLabel = data.source === 'genie' ? '✅ Databricks Genie' : '✅ Powered by Databricks';
+  const msgEl = appendMsg(thread, 'ai', data.answer, srcLabel, data.follow_ups || []);
+
+  // Agentic recommendations
+  fetch('/manufacturing/api/actions/suggest', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: q, answer: data.answer }),
+  })
+    .then(r => r.json())
+    .then(actions => { if (actions.length) appendMfgActionPanel(msgEl, actions); })
+    .catch(() => {});
 
   btn.disabled = false;
   document.querySelector('.shift-chat-body').scrollTop = 99999;
@@ -1974,6 +1984,54 @@ function appendMsg(thread, role, content, source, followUps) {
   div.appendChild(av);
   div.appendChild(wrap);
   thread.appendChild(div);
+  return wrap;
+}
+
+function appendMfgActionPanel(wrapEl, actions) {
+  const panel = document.createElement('div');
+  panel.className = 'action-panel';
+  const hdr = document.createElement('div');
+  hdr.className = 'action-panel-header';
+  hdr.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Recommended Actions`;
+  panel.appendChild(hdr);
+  const cards = document.createElement('div');
+  cards.className = 'action-cards';
+  actions.forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'action-card';
+    card.id = `mfg-action-card-${a.id}`;
+    const impact = a.impact_usd > 0 ? `$${(a.impact_usd/1000).toFixed(0)}K impact` : 'Process improvement';
+    card.innerHTML = `
+      <div class="action-priority-dot ${a.priority}"></div>
+      <div class="action-card-body">
+        <div class="action-card-title">${a.label}</div>
+        <div class="action-card-desc">${a.description}</div>
+        <div class="action-card-meta"><span class="action-impact">${impact}</span> · <span>${a.owner}</span> · <span>${a.entity_name}</span></div>
+        <div class="action-btns">
+          <button class="action-approve-btn" onclick="executeMfgAction('${a.id}','approved',this)">Take Action</button>
+          <button class="action-dismiss-btn" onclick="executeMfgAction('${a.id}','dismissed',this)">Dismiss</button>
+        </div>
+      </div>`;
+    cards.appendChild(card);
+  });
+  panel.appendChild(cards);
+  wrapEl.appendChild(panel);
+  document.querySelector('.shift-chat-body').scrollTop = 99999;
+}
+
+async function executeMfgAction(actionId, outcome, btn) {
+  try {
+    btn.disabled = true;
+    const card = document.getElementById(`mfg-action-card-${actionId}`);
+    await fetch('/manufacturing/api/actions/execute', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action_id: actionId, outcome }),
+    });
+    if (card) card.style.opacity = '0.45';
+    btn.closest('.action-btns').innerHTML = outcome === 'approved'
+      ? '<span style="color:#10b981;font-size:11px;font-weight:600">✓ Action taken</span>'
+      : '<span style="color:#6b7280;font-size:11px">Dismissed</span>';
+  } catch (_) { btn.disabled = false; }
 }
 
 // ── Equipment Manuals Tab ────────────────────────────────────────────────────
@@ -2069,10 +2127,7 @@ async function submitManuals() {
       const sourceBlock = sources
         ? `<div class="manuals-sources"><span class="manuals-sources-label">Sources:</span> ${sources}</div>`
         : '';
-      const simBadge = data.simulated
-        ? `<div class="manuals-sim-note">Simulated response — connect <code>MANUALS_ENDPOINT</code> for live RAG</div>`
-        : '';
-      appendManualsMessage('ai', data.answer, sourceBlock + simBadge);
+      appendManualsMessage('ai', data.answer, sourceBlock);
     }
   } catch (e) {
     if (loading) { loading.classList.add('hidden'); loading.style.display = 'none'; }

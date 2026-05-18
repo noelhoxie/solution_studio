@@ -329,7 +329,15 @@ async function sendMessage(overrideText) {
     });
     const d = await resp.json();
     removeMsg(typingId);
-    appendGenieAnswer(d);
+    const msgEl = appendGenieAnswer(d);
+    // Agentic recommendations
+    fetch('/finance/api/actions/suggest', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, answer: d.answer || '' }),
+    })
+      .then(r => r.json())
+      .then(actions => { if (actions.length && msgEl) appendFinActionPanel(msgEl, actions); })
+      .catch(() => {});
   } catch (_) {
     removeMsg(typingId);
     appendMsg('system', 'Sorry, I couldn\'t reach the Genie space. Please try again.');
@@ -397,6 +405,54 @@ function appendGenieAnswer(d) {
   div.appendChild(bubble);
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
+  return bubble;
+}
+
+function appendFinActionPanel(wrapEl, actions) {
+  const panel = document.createElement('div');
+  panel.className = 'action-panel';
+  const hdr = document.createElement('div');
+  hdr.className = 'action-panel-header';
+  hdr.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Recommended Actions`;
+  panel.appendChild(hdr);
+  const cards = document.createElement('div');
+  cards.className = 'action-cards';
+  actions.forEach(a => {
+    const card = document.createElement('div');
+    card.className = 'action-card';
+    card.id = `fin-action-card-${a.id}`;
+    const impact = a.impact_usd > 0 ? `$${(a.impact_usd/1000000).toFixed(1)}M impact` : 'Process improvement';
+    card.innerHTML = `
+      <div class="action-priority-dot ${a.priority}"></div>
+      <div class="action-card-body">
+        <div class="action-card-title">${a.label}</div>
+        <div class="action-card-desc">${a.description}</div>
+        <div class="action-card-meta"><span class="action-impact">${impact}</span> · <span>${a.owner}</span> · <span>${a.entity_name}</span></div>
+        <div class="action-btns">
+          <button class="action-approve-btn" onclick="executeFinAction('${a.id}','approved',this)">Take Action</button>
+          <button class="action-dismiss-btn" onclick="executeFinAction('${a.id}','dismissed',this)">Dismiss</button>
+        </div>
+      </div>`;
+    cards.appendChild(card);
+  });
+  panel.appendChild(cards);
+  wrapEl.appendChild(panel);
+  messages.scrollTop = messages.scrollHeight;
+}
+
+async function executeFinAction(actionId, outcome, btn) {
+  try {
+    btn.disabled = true;
+    const card = document.getElementById(`fin-action-card-${actionId}`);
+    await fetch('/finance/api/actions/execute', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action_id: actionId, outcome }),
+    });
+    if (card) card.style.opacity = '0.45';
+    btn.closest('.action-btns').innerHTML = outcome === 'approved'
+      ? '<span style="color:#10b981;font-size:11px;font-weight:600">✓ Action taken</span>'
+      : '<span style="color:#6b7280;font-size:11px">Dismissed</span>';
+  } catch (_) { btn.disabled = false; }
 }
 
 function appendTyping() {

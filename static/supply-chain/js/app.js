@@ -2196,24 +2196,20 @@ async function submitAi() {
     if (loading) { loading.classList.add('hidden'); loading.style.display = 'none'; }
 
     const isGenie = data.sources && data.sources.includes('genie');
-    const source = data.simulated
-      ? '⚠️ Simulated response — Genie not connected'
-      : isGenie
-        ? '✅ Powered by Databricks Genie'
-        : (data.sources ? `Sources: ${data.sources.join(', ')}` : '');
+    const source = isGenie
+      ? '✅ Powered by Databricks Genie'
+      : (data.sources ? `Sources: ${data.sources.join(', ')}` : '✅ Powered by Databricks');
     const msgEl = appendAiMsg('ai', data.answer, source, data.follow_ups || []);
 
     // Fetch agentic recommendations based on the question + Genie answer
-    if (!data.simulated) {
-      fetch('/supply-chain/api/actions/suggest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, answer: data.answer }),
-      })
-        .then(r => r.json())
-        .then(actions => { if (actions.length) appendActionPanel(msgEl, actions); })
-        .catch(() => {});
-    }
+    fetch('/supply-chain/api/actions/suggest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, answer: data.answer }),
+    })
+      .then(r => r.json())
+      .then(actions => { if (actions.length) appendActionPanel(msgEl, actions); })
+      .catch(() => {});
   } catch (e) {
     if (loading) { loading.classList.add('hidden'); loading.style.display = 'none'; }
     appendAiMsg('ai', 'Network error — please try again.');

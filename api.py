@@ -1939,6 +1939,42 @@ def mfg_manuals_query():
     return jsonify(_mfg_manual_fallback_answer(question))
 
 
+_MFG_ACTIONS = [
+    {"id": "MFG-001", "type": "maintenance_wo",   "entity_id": "CNC-04",    "entity_name": "CNC Line 4",           "label": "Create Maintenance Work Order",  "description": "Create emergency work order for CNC-04 — spindle bearing vibration exceeding 8.2 mm/s threshold.",       "rationale": "Predicted failure in < 72 hrs. Unplanned stoppage ~$18K/hr.",           "impact_usd": 54000,  "priority": "Critical", "owner": "Maintenance",        "status": "pending", "keywords": ["cnc","spindle","vibration","bearing","downtime","failure","maintenance"]},
+    {"id": "MFG-002", "type": "quality_hold",     "entity_id": "PAINT-02",  "entity_name": "Paint Line 2",         "label": "Issue Quality Hold",             "description": "Place quality hold on Paint Line 2 — E-Coat bath conductivity at 1,420 µS/cm (limit: 1,380).",           "rationale": "18 panels at risk. Rework cost < 40% of scrap cost if caught now.",    "impact_usd": 12000,  "priority": "High",     "owner": "Quality",            "status": "pending", "keywords": ["paint","quality","defect","coating","scrap","hold","e-coat","conductivity"]},
+    {"id": "MFG-003", "type": "schedule_update",  "entity_id": "PRESS-01",  "entity_name": "Press Shop Line 1",    "label": "Update Production Schedule",     "description": "Adjust Press Shop Line 1 target down 8% to reflect 71.2% OEE — prevents downstream starvation.",        "rationale": "Target assumes 85% OEE. Assembly will starve without adjustment.",     "impact_usd": 0,      "priority": "High",     "owner": "Production Planning","status": "pending", "keywords": ["oee","schedule","production","target","shift","output","press","attainment"]},
+    {"id": "MFG-004", "type": "shift_alert",      "entity_id": "PLANT-01",  "entity_name": "Plant 1",              "label": "Alert Shift Supervisor",         "description": "Escalate to shift supervisor — 3 machines below OEE threshold for > 45 minutes without Andon response.",  "rationale": "Andon response time averaging 22 min vs 8-min target.",               "impact_usd": 8500,   "priority": "High",     "owner": "Operations",         "status": "pending", "keywords": ["oee","downtime","supervisor","fault","andon","escalate","alert","response"]},
+    {"id": "MFG-005", "type": "pm_schedule",      "entity_id": "WELD-03",   "entity_name": "Weld Station 3",       "label": "Schedule Preventive Maintenance","description": "Schedule PM for Weld Station 3 during next planned window — electrode wear at 94% of replacement threshold.","rationale": "Proactive cost $1.2K vs $9K unplanned repair.",                       "impact_usd": 7800,   "priority": "Medium",   "owner": "Maintenance",        "status": "pending", "keywords": ["weld","electrode","preventive","pm","schedule","wear","maintenance"]},
+    {"id": "MFG-006", "type": "shift_report",     "entity_id": "PLANT-01",  "entity_name": "Plant 1",              "label": "Send Shift Intelligence Report", "description": "Email formatted shift report to plant manager — OEE breakdown, root causes, and recovery actions.",         "rationale": "Shift-end reporting takes 45 min manually. AI report ready in < 2 min.","impact_usd": 0,      "priority": "Medium",   "owner": "Plant Manager",      "status": "pending", "keywords": ["shift","report","oee","summary","email","manager","performance"]},
+]
+_mfg_action_status: dict[str, str] = {}
+
+
+@app.route("/manufacturing/api/actions/suggest", methods=["POST"])
+@login_required
+def mfg_suggest_actions():
+    data   = request.get_json(silent=True) or {}
+    text   = (data.get("question", "") + " " + data.get("answer", "")).lower()
+    scored = [(sum(1 for kw in a["keywords"] if kw in text), a)
+              for a in _MFG_ACTIONS if _mfg_action_status.get(a["id"]) not in ("approved", "dismissed")]
+    scored = sorted([(s, a) for s, a in scored if s], key=lambda x: (-x[0], -x[1]["impact_usd"]))
+    return jsonify([{**{k: v for k, v in a.items() if k != "keywords"},
+                     "status": _mfg_action_status.get(a["id"], a["status"])} for _, a in scored[:3]])
+
+
+@app.route("/manufacturing/api/actions/execute", methods=["POST"])
+@login_required
+def mfg_execute_action():
+    data      = request.get_json(silent=True) or {}
+    action_id = data.get("action_id", "")
+    outcome   = data.get("outcome", "approved")
+    if not action_id:
+        return jsonify({"error": "action_id required"}), 400
+    _mfg_action_status[action_id] = outcome
+    user = request.headers.get("X-Forwarded-User") or session.get("username", "user")
+    return jsonify({"action_id": action_id, "outcome": outcome, "executed_by": user})
+
+
 @app.route("/manufacturing/api/log-page-time", methods=["POST"])
 @login_required
 def mfg_log_page_time():
@@ -2296,6 +2332,42 @@ def fin_genie_ask():
         "query":          parsed.get("query"),
         "gemini_context": gemini_context,
     })
+
+
+_FIN_ACTIONS = [
+    {"id": "FIN-001", "type": "executive_briefing","entity_id": "CFO",        "entity_name": "Finance Leadership",  "label": "Generate Executive Briefing",   "description": "Generate AI executive briefing for CFO — Q2 variance summary, cash flow risk, and recommended corrective actions.", "rationale": "Board meeting in 3 days. Manual prep takes 6 hrs; AI draft in < 90 sec.",         "impact_usd": 0,       "priority": "High",     "owner": "FP&A",        "status": "pending", "keywords": ["briefing","executive","cfo","board","summary","variance","report","quarter"]},
+    {"id": "FIN-002", "type": "variance_flag",     "entity_id": "COGS",       "entity_name": "Manufacturing COGS",  "label": "Flag Variance for CFO Review",  "description": "Escalate Manufacturing COGS variance (+$4.2M vs plan) to CFO review queue with root cause annotation.",           "rationale": "COGS running 8.3% over plan for 3 consecutive months.",                           "impact_usd": 4200000, "priority": "Critical", "owner": "Controller",  "status": "pending", "keywords": ["cogs","variance","manufacturing","cost","plan","budget","overrun","unfavorable"]},
+    {"id": "FIN-003", "type": "forecast_update",   "entity_id": "Q2-FCST",    "entity_name": "Q2 Revenue Forecast", "label": "Update Q2 Revenue Forecast",    "description": "Submit revised Q2 revenue forecast — apply -3.2% volume adjustment based on current order pipeline data.",       "rationale": "Consensus forecast overstates pipeline by $6.8M based on CRM data.",              "impact_usd": 6800000, "priority": "High",     "owner": "FP&A",        "status": "pending", "keywords": ["forecast","revenue","q2","pipeline","volume","adjustment","revision","consensus"]},
+    {"id": "FIN-004", "type": "cash_alert",        "entity_id": "TREASURY",   "entity_name": "Treasury",            "label": "Send Cash Flow Alert",          "description": "Alert treasury — projected cash position drops below $50M threshold in week 6 based on receivables aging.",        "rationale": "DSO running 47 days vs 38-day target. Credit line draw may be needed.",           "impact_usd": 0,       "priority": "High",     "owner": "Treasury",    "status": "pending", "keywords": ["cash","receivables","dso","treasury","liquidity","flow","working capital","aging"]},
+    {"id": "FIN-005", "type": "cost_review",       "entity_id": "OPEX",       "entity_name": "Operating Expenses",  "label": "Initiate Cost Center Review",   "description": "Trigger cost center review for top 5 over-budget departments — auto-generate variance explanations from GL.",   "rationale": "3 cost centers > 15% over budget. Policy requires CFO sign-off above 10%.",       "impact_usd": 0,       "priority": "Medium",   "owner": "Controller",  "status": "pending", "keywords": ["opex","cost center","budget","over budget","gl","expense","spend","department"]},
+    {"id": "FIN-006", "type": "board_report",      "entity_id": "BOARD",      "entity_name": "Board Package",       "label": "Generate Board Report Section", "description": "Generate AI-assisted board package — P&L vs budget, cash flow waterfall, and risk summary in standard template.", "rationale": "Board package due Friday. Financial narrative section takes 4 hrs manually.",     "impact_usd": 0,       "priority": "Medium",   "owner": "CFO Office",  "status": "pending", "keywords": ["board","report","package","p&l","presentation","narrative","slides"]},
+]
+_fin_action_status: dict[str, str] = {}
+
+
+@app.route("/finance/api/actions/suggest", methods=["POST"])
+@login_required
+def fin_suggest_actions():
+    data   = request.get_json(silent=True) or {}
+    text   = (data.get("question", "") + " " + data.get("answer", "")).lower()
+    scored = [(sum(1 for kw in a["keywords"] if kw in text), a)
+              for a in _FIN_ACTIONS if _fin_action_status.get(a["id"]) not in ("approved", "dismissed")]
+    scored = sorted([(s, a) for s, a in scored if s], key=lambda x: (-x[0], -x[1]["impact_usd"]))
+    return jsonify([{**{k: v for k, v in a.items() if k != "keywords"},
+                     "status": _fin_action_status.get(a["id"], a["status"])} for _, a in scored[:3]])
+
+
+@app.route("/finance/api/actions/execute", methods=["POST"])
+@login_required
+def fin_execute_action():
+    data      = request.get_json(silent=True) or {}
+    action_id = data.get("action_id", "")
+    outcome   = data.get("outcome", "approved")
+    if not action_id:
+        return jsonify({"error": "action_id required"}), 400
+    _fin_action_status[action_id] = outcome
+    user = request.headers.get("X-Forwarded-User") or session.get("username", "user")
+    return jsonify({"action_id": action_id, "outcome": outcome, "executed_by": user})
 
 
 @app.route("/finance/api/log-page-time", methods=["POST"])
