@@ -282,7 +282,7 @@ def config():
         {
             "name":     os.getenv("APP_1_NAME",     "Supply Chain Intelligence"),
             "tagline":  os.getenv("APP_1_TAGLINE",  "IBP · Inventory · Demand · Orders"),
-            "desc":     os.getenv("APP_1_DESC",     "End-to-end supply chain visibility — integrated business planning, inventory optimisation, AI demand forecasting, and order automation."),
+            "desc":     os.getenv("APP_1_DESC",     "Supply chain leaders face mounting pressure from tariff volatility, supplier disruptions, and demand uncertainty. This app gives S&OP and procurement teams a unified command center — AI-driven demand sensing, real-time inventory visibility, and automated exception management to protect margins and service levels."),
             "url":      "/supply-chain/",
             "features": os.getenv("APP_1_FEATURES", "Integrated Business Planning,Inventory Optimization,Demand Forecasting AI,Order Automation").split(","),
             "badge":    os.getenv("APP_1_BADGE",    "Supply Chain"),
@@ -291,7 +291,7 @@ def config():
         {
             "name":     os.getenv("APP_2_NAME",     "Manufacturing Intelligence"),
             "tagline":  os.getenv("APP_2_TAGLINE",  "OEE · Quality · Predictive Maintenance"),
-            "desc":     os.getenv("APP_2_DESC",     "AI-powered manufacturing operations — real-time OEE monitoring, defect detection, predictive maintenance, and quality analytics."),
+            "desc":     os.getenv("APP_2_DESC",     "Plant managers and reliability engineers lose millions annually to unplanned downtime and quality escapes. This app unifies machine telemetry, vision-based defect detection, and predictive maintenance into a single real-time view — reducing unplanned downtime, cutting scrap rates, and shifting maintenance from reactive to predictive."),
             "url":      "/manufacturing/",
             "features": os.getenv("APP_2_FEATURES", "OEE Monitoring,Predictive Maintenance,Defect Detection AI,Quality Analytics").split(","),
             "badge":    os.getenv("APP_2_BADGE",    "Manufacturing"),
@@ -300,7 +300,7 @@ def config():
         {
             "name":     os.getenv("APP_3_NAME",     "Finance Intelligence"),
             "tagline":  os.getenv("APP_3_TAGLINE",  "P&L · Cash Flow · Forecasting · Risk"),
-            "desc":     os.getenv("APP_3_DESC",     "Unified financial intelligence — real-time P&L visibility, cash flow forecasting, variance analysis, and AI-driven risk detection."),
+            "desc":     os.getenv("APP_3_DESC",     "CFOs and FP&A teams are flying blind when financial data is fragmented across ERPs, spreadsheets, and business units. This app consolidates P&L, cash flow, and cost center data into a live finance command center — enabling faster close cycles, AI-generated executive briefings, and proactive risk detection before it hits the bottom line."),
             "url":      "/finance/",
             "features": os.getenv("APP_3_FEATURES", "P&L Visibility,Cash Flow Forecasting,Variance Analysis,Risk Detection AI").split(","),
             "badge":    os.getenv("APP_3_BADGE",    "Finance"),
