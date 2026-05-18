@@ -250,7 +250,11 @@ def logout():
 
 @app.route("/health")
 def health():
-    return jsonify({"status": "ok", "delta_log": "enabled" if _DELTA_LOG_OK else "disabled"})
+    try:
+        outbound_ip = requests.get("https://api.ipify.org?format=json", timeout=5).json().get("ip", "unknown")
+    except Exception:
+        outbound_ip = "unknown"
+    return jsonify({"status": "ok", "delta_log": "enabled" if _DELTA_LOG_OK else "disabled", "outbound_ip": outbound_ip})
 
 
 @app.route("/portal")
