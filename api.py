@@ -268,10 +268,13 @@ def login():
     # POST
     username     = (request.form.get("username") or "").strip()
     company_name = (request.form.get("password") or "").strip()
+    email        = (request.form.get("email")    or "").strip()
     if username and company_name:
         session["authenticated"] = True
         session["username"]      = username
         session["company_name"]  = company_name
+        if email and email != "other":
+            session["email"] = email
         return redirect("/portal")
     return send_from_directory(str(STATIC_DIR), "login.html"), 401
 
