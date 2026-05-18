@@ -98,7 +98,7 @@
       margin-bottom: 6px;
       letter-spacing: .03em;
     }
-    .field input, .field select {
+    .field input {
       width: 100%;
       background: #0d0d0d;
       border: 1px solid rgba(255,255,255,0.1);
@@ -109,29 +109,9 @@
       font-family: inherit;
       outline: none;
       transition: border-color .2s;
-      appearance: none;
-      -webkit-appearance: none;
     }
-    .field input:focus, .field select:focus { border-color: #1B6FEB; }
+    .field input:focus { border-color: #1B6FEB; }
     .field input::placeholder { color: #4b5563; }
-    .field select option { background: #171717; color: #f0f0f0; }
-    .field select option:disabled { color: #4b5563; }
-    .select-wrap {
-      position: relative;
-    }
-    .select-wrap::after {
-      content: '';
-      position: absolute;
-      right: 14px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 0;
-      height: 0;
-      border-left: 4px solid transparent;
-      border-right: 4px solid transparent;
-      border-top: 5px solid #6b7280;
-      pointer-events: none;
-    }
 
     .error-box {
       background: rgba(239,68,68,0.1);
@@ -229,13 +209,7 @@
     </div>
     <div class="field">
       <label for="email">Your Email</label>
-      <div class="select-wrap">
-        <select id="email" name="email" required>
-          <option value="" disabled selected>Select your email</option>
-          <option value="noel.hoxie@databricks.com">noel.hoxie@databricks.com</option>
-          <option value="other">Other</option>
-        </select>
-      </div>
+      <input type="email" id="email" name="email" placeholder="jane.smith@company.com" autocomplete="email"/>
     </div>
     <button class="submit-btn" type="submit">Sign In</button>
   </form>
