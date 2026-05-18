@@ -40,8 +40,9 @@ COMPANY_NAME    = os.getenv("COMPANY_NAME", "")
 
 # Delta logging (shared)
 LOG_HTTP_PATH = os.getenv("LOG_HTTP_PATH") or os.getenv("SC_SQL_WAREHOUSE_HTTP_PATH", "")
-LOG_CATALOG   = os.getenv("LOG_CATALOG", "solution_studio_catalog")
-LOG_SCHEMA    = os.getenv("LOG_SCHEMA", "solution_studio_logs")
+LOG_CATALOG       = os.getenv("LOG_CATALOG", "solution_studio_catalog")
+LOG_SCHEMA        = os.getenv("LOG_SCHEMA", "solution_studio_logs")
+LOG_SHEETS_WEBHOOK = os.getenv("LOG_SHEETS_WEBHOOK", "")
 
 # Supply chain
 SC_GENIE_SPACE_ID          = os.getenv("SC_GENIE_SPACE_ID", "")
@@ -178,6 +179,17 @@ def _delta_log_write(sql, params=()):
             escaped.append("'" + str(p).replace("'", "''") + "'")
     stmt = sql % tuple(escaped) if escaped else sql
     return _delta_sql_exec(stmt)
+
+
+def _sheets_log_write(data: dict):
+    if not LOG_SHEETS_WEBHOOK:
+        return False
+    try:
+        requests.post(LOG_SHEETS_WEBHOOK, json=data, timeout=10)
+        return True
+    except Exception as e:
+        print(f"[Sheets] Write failed: {e}", flush=True)
+        return False
 
 
 def _ensure_log_tables():
@@ -319,6 +331,8 @@ def contact():
         "VALUES (%s, %s, %s, %s, %s, %s, current_timestamp())",
         (name, company, email, role, interest, message),
     )
+    _sheets_log_write({"type": "contact", "username": name, "company_name": company,
+                       "email": email, "role": role, "interest": interest, "message": message})
     return jsonify({"status": "ok", "stored": stored})
 
 
@@ -771,6 +785,8 @@ def sc_log_page_time():
         "VALUES (%s, %s, %s, %s, %s, current_timestamp())",
         (user, company, page, seconds, "Supply Chain Intelligence"),
     )
+    _sheets_log_write({"type": "page_view", "username": user, "company_name": company,
+                       "page": page, "seconds_spent": seconds, "app_name": "Supply Chain Intelligence"})
     return jsonify({"status": "ok"})
 
 
@@ -1937,6 +1953,8 @@ def mfg_log_page_time():
         "VALUES (%s, %s, %s, %s, %s, current_timestamp())",
         (user, company, page, seconds, "Manufacturing Intelligence"),
     )
+    _sheets_log_write({"type": "page_view", "username": user, "company_name": company,
+                       "page": page, "seconds_spent": seconds, "app_name": "Manufacturing Intelligence"})
     return jsonify({"status": "ok"})
 
 
@@ -2294,6 +2312,8 @@ def fin_log_page_time():
         "VALUES (%s, %s, %s, %s, %s, current_timestamp())",
         (user, company, page, seconds, "Finance Intelligence"),
     )
+    _sheets_log_write({"type": "page_view", "username": user, "company_name": company,
+                       "page": page, "seconds_spent": seconds, "app_name": "Finance Intelligence"})
     return jsonify({"status": "ok"})
 
 
