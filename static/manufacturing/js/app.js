@@ -1929,7 +1929,7 @@ async function submitShift() {
 
   if (data.conversation_id) shiftConvId = data.conversation_id;
 
-  const srcLabel = data.source === 'genie' ? '✅ Databricks Genie' : '✅ Powered by Databricks';
+  const srcLabel = data.source === 'genie' ? '✅ Powered by Databricks AI' : '✅ Powered by Databricks';
   const msgEl = appendMsg(thread, 'ai', data.answer, srcLabel, data.follow_ups || []);
 
   // Agentic recommendations

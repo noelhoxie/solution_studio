@@ -2197,11 +2197,11 @@ async function submitAi() {
 
     const isGenie = data.sources && data.sources.includes('genie');
     const source = isGenie
-      ? '✅ Powered by Databricks Genie'
+      ? '✅ Powered by Databricks AI'
       : (data.sources ? `Sources: ${data.sources.join(', ')}` : '✅ Powered by Databricks');
     const msgEl = appendAiMsg('ai', data.answer, source, data.follow_ups || []);
 
-    // Fetch agentic recommendations based on the question + Genie answer
+    // Fetch agentic recommendations based on the question + AI answer
     fetch('/supply-chain/api/actions/suggest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
