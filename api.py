@@ -110,7 +110,8 @@ def _auto_auth():
 # ── Company Logo ─────────────────────────────────────────────────────────────────
 
 def _clearbit_logo(name: str) -> str:
-    """Return a logo URL for the given company name via Clearbit autocomplete (free, no key)."""
+    """Return a logo URL for the given company name via Clearbit autocomplete (free, no key).
+    Autocomplete returns logo=null but always returns domain; construct the logo URL from it."""
     if not name:
         return ""
     try:
@@ -120,8 +121,9 @@ def _clearbit_logo(name: str) -> str:
             timeout=5,
         )
         results = r.json()
-        if results and isinstance(results, list) and results[0].get("logo"):
-            return results[0]["logo"]
+        if results and isinstance(results, list) and results[0].get("domain"):
+            domain = results[0]["domain"]
+            return f"https://logo.clearbit.com/{domain}"
     except Exception:
         pass
     return ""
@@ -270,7 +272,6 @@ def login():
         session["authenticated"] = True
         session["username"]      = username
         session["company_name"]  = company_name
-        session["company_logo"]  = _clearbit_logo(company_name)
         return redirect("/portal")
     return send_from_directory(str(STATIC_DIR), "login.html"), 401
 

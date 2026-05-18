@@ -387,15 +387,21 @@ async function init() {
     document.title = 'Solution Studio' + (company ? ' — ' + company : '');
     if (username) document.getElementById('header-username').textContent = username + (company ? ' · ' + company : '');
 
-    // Show company logo in header
-    if (d.company_logo) {
-      const img = document.createElement('img');
-      img.src = d.company_logo;
-      img.alt = company;
-      img.style.cssText = 'width:26px;height:26px;border-radius:5px;object-fit:contain;background:#fff;padding:2px;margin-right:6px;vertical-align:middle;flex-shrink:0;';
-      img.onerror = () => img.remove();
-      const userEl = document.getElementById('header-username');
-      userEl.parentNode.insertBefore(img, userEl);
+    // Show company logo — fetch domain from Clearbit autocomplete (browser-side, free, no key)
+    if (company) {
+      fetch(`https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(company)}`)
+        .then(r => r.json())
+        .then(results => {
+          if (!results || !results[0] || !results[0].domain) return;
+          const img = document.createElement('img');
+          img.src = `https://logo.clearbit.com/${results[0].domain}`;
+          img.alt = company;
+          img.style.cssText = 'width:26px;height:26px;border-radius:5px;object-fit:contain;background:#fff;padding:2px;margin-right:6px;vertical-align:middle;flex-shrink:0;';
+          img.onerror = () => img.remove();
+          const userEl = document.getElementById('header-username');
+          userEl.parentNode.insertBefore(img, userEl);
+        })
+        .catch(() => {});
     }
 
     // Render app cards

@@ -46,14 +46,20 @@ async function loadAppConfig() {
       if (sub) sub.textContent = d.company_name + ' · Manufacturing';
       document.title = d.company_name + ' — Manufacturing Intelligence';
     }
-    if (d.company_logo) {
-      const img = document.createElement('img');
-      img.src = d.company_logo;
-      img.alt = d.company_name || '';
-      img.style.cssText = 'width:28px;height:28px;border-radius:5px;object-fit:contain;background:#fff;padding:2px;margin-left:10px;flex-shrink:0;';
-      img.onerror = () => img.remove();
-      const brand = document.querySelector('.header-brand');
-      if (brand) brand.appendChild(img);
+    if (d.company_name) {
+      fetch(`https://autocomplete.clearbit.com/v1/companies/suggest?query=${encodeURIComponent(d.company_name)}`)
+        .then(r => r.json())
+        .then(results => {
+          if (!results || !results[0] || !results[0].domain) return;
+          const img = document.createElement('img');
+          img.src = `https://logo.clearbit.com/${results[0].domain}`;
+          img.alt = d.company_name;
+          img.style.cssText = 'width:28px;height:28px;border-radius:5px;object-fit:contain;background:#fff;padding:2px;margin-left:10px;flex-shrink:0;';
+          img.onerror = () => img.remove();
+          const brand = document.querySelector('.header-brand');
+          if (brand) brand.appendChild(img);
+        })
+        .catch(() => {});
     }
   } catch (_) {}
 }
