@@ -387,6 +387,17 @@ async function init() {
     document.title = 'Solution Studio' + (company ? ' — ' + company : '');
     if (username) document.getElementById('header-username').textContent = username + (company ? ' · ' + company : '');
 
+    // Show company logo in header
+    if (d.company_logo) {
+      const img = document.createElement('img');
+      img.src = d.company_logo;
+      img.alt = company;
+      img.style.cssText = 'width:26px;height:26px;border-radius:5px;object-fit:contain;background:#fff;padding:2px;margin-right:6px;vertical-align:middle;flex-shrink:0;';
+      img.onerror = () => img.remove();
+      const userEl = document.getElementById('header-username');
+      userEl.parentNode.insertBefore(img, userEl);
+    }
+
     // Render app cards
     if (d.apps && d.apps.length) renderCards(d.apps);
   } catch (e) {

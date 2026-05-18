@@ -107,6 +107,26 @@ def _auto_auth():
         session["company_name"]  = COMPANY_NAME or "Databricks"
 
 
+# ── Company Logo ─────────────────────────────────────────────────────────────────
+
+def _clearbit_logo(name: str) -> str:
+    """Return a logo URL for the given company name via Clearbit autocomplete (free, no key)."""
+    if not name:
+        return ""
+    try:
+        r = requests.get(
+            "https://autocomplete.clearbit.com/v1/companies/suggest",
+            params={"query": name},
+            timeout=5,
+        )
+        results = r.json()
+        if results and isinstance(results, list) and results[0].get("logo"):
+            return results[0]["logo"]
+    except Exception:
+        pass
+    return ""
+
+
 # ── Credentials ─────────────────────────────────────────────────────────────────
 
 def _creds():
@@ -250,6 +270,7 @@ def login():
         session["authenticated"] = True
         session["username"]      = username
         session["company_name"]  = company_name
+        session["company_logo"]  = _clearbit_logo(company_name)
         return redirect("/portal")
     return send_from_directory(str(STATIC_DIR), "login.html"), 401
 
@@ -310,8 +331,21 @@ def config():
     return jsonify({
         "company_name": session.get("company_name", COMPANY_NAME),
         "username":     session.get("username", ""),
+        "company_logo": session.get("company_logo", ""),
         "launch_token": os.getenv("DATABRICKS_TOKEN", ""),
         "apps":         apps,
+    })
+
+
+@app.route("/supply-chain/api/config")
+@app.route("/manufacturing/api/config")
+@app.route("/finance/api/config")
+@login_required
+def app_config():
+    return jsonify({
+        "company_name": session.get("company_name", COMPANY_NAME),
+        "username":     session.get("username", ""),
+        "company_logo": session.get("company_logo", ""),
     })
 
 

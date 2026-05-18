@@ -31,11 +31,32 @@ document.addEventListener('DOMContentLoaded', () => {
   loadStatic();
   startLivePolling();
   initCalculator();
+  loadAppConfig();
 
   document.getElementById('shift-input').addEventListener('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') submitShift();
   });
 });
+
+async function loadAppConfig() {
+  try {
+    const d = await (await fetch('/manufacturing/api/config')).json();
+    if (d.company_name) {
+      const sub = document.querySelector('.header-title-sub');
+      if (sub) sub.textContent = d.company_name + ' · Manufacturing';
+      document.title = d.company_name + ' — Manufacturing Intelligence';
+    }
+    if (d.company_logo) {
+      const img = document.createElement('img');
+      img.src = d.company_logo;
+      img.alt = d.company_name || '';
+      img.style.cssText = 'width:28px;height:28px;border-radius:5px;object-fit:contain;background:#fff;padding:2px;margin-left:10px;flex-shrink:0;';
+      img.onerror = () => img.remove();
+      const brand = document.querySelector('.header-brand');
+      if (brand) brand.appendChild(img);
+    }
+  } catch (_) {}
+}
 
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light');

@@ -72,9 +72,31 @@ function switchTab(tab) {
   if (tab === 'genie') initGenie();
 }
 
+// ── App Config (branding) ──────────────────────────────────────────────────
+async function loadAppConfig() {
+  try {
+    const d = await (await fetch('/finance/api/config')).json();
+    if (d.company_name) {
+      const nameEl = document.querySelector('.nav-brand-name');
+      if (nameEl) nameEl.textContent = d.company_name + ' — Finance';
+      document.title = d.company_name + ' — Finance Intelligence';
+    }
+    if (d.company_logo) {
+      const img = document.createElement('img');
+      img.src = d.company_logo;
+      img.alt = d.company_name || '';
+      img.style.cssText = 'width:22px;height:22px;border-radius:4px;object-fit:contain;background:#fff;padding:2px;margin-left:8px;flex-shrink:0;';
+      img.onerror = () => img.remove();
+      const brand = document.querySelector('.nav-brand');
+      if (brand) brand.appendChild(img);
+    }
+  } catch (_) {}
+}
+
 // ── Boot ───────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadKpis();          // global strip always loads
+  loadAppConfig();
   switchTab('pl');     // triggers P&L lazy load + timer
 });
 

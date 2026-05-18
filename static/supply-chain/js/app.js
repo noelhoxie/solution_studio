@@ -332,6 +332,15 @@ async function loadAppConfig() {
       document.getElementById('nav-brand-name').textContent = d.company_name + ' — Supply Chain';
       document.title = d.company_name + ' — Supply Chain Intelligence';
     }
+    if (d.company_logo) {
+      const img = document.createElement('img');
+      img.src = d.company_logo;
+      img.alt = d.company_name || '';
+      img.style.cssText = 'width:22px;height:22px;border-radius:4px;object-fit:contain;background:#fff;padding:2px;margin-left:8px;flex-shrink:0;';
+      img.onerror = () => img.remove();
+      const brand = document.querySelector('.nav-brand');
+      if (brand) brand.appendChild(img);
+    }
     // Pre-fill contact form if visible
     const cfEmail   = document.getElementById('cf-email');
     const cfCompany = document.getElementById('cf-company');
