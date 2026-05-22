@@ -338,12 +338,20 @@ async function loadAppConfig() {
         .then(results => {
           if (!results || !results[0] || !results[0].domain) return;
           const img = document.createElement('img');
-          img.src = `https://logo.clearbit.com/${results[0].domain}`;
           img.alt = d.company_name;
-          img.style.cssText = 'width:22px;height:22px;border-radius:4px;object-fit:contain;background:#fff;padding:2px;margin-left:8px;flex-shrink:0;';
-          img.onerror = () => img.remove();
-          const brand = document.querySelector('.nav-brand');
-          if (brand) brand.appendChild(img);
+          img.style.cssText = 'width:28px;height:28px;border-radius:6px;object-fit:contain;background:#fff;padding:3px;flex-shrink:0;';
+          img.onload = () => {
+            // Replace the Databricks icon with the company logo in the top-left
+            const brand = document.querySelector('.nav-brand');
+            const brandSvg = brand ? brand.querySelector('svg') : null;
+            if (brandSvg) brandSvg.replaceWith(img);
+            else if (brand) brand.prepend(img);
+            // Show just the app title — the logo identifies the company visually
+            const nameEl = document.getElementById('nav-brand-name');
+            if (nameEl) nameEl.textContent = 'Supply Chain Intelligence';
+          };
+          img.onerror = () => {}; // fallback: keep company name text
+          img.src = `https://cdn.brandfetch.io/domain/${results[0].domain}?c=1idGdcDDyuPmwhnhURl`; // set src last so onload is always wired up
         })
         .catch(() => {});
     }

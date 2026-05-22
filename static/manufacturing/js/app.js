@@ -52,12 +52,23 @@ async function loadAppConfig() {
         .then(results => {
           if (!results || !results[0] || !results[0].domain) return;
           const img = document.createElement('img');
-          img.src = `https://logo.clearbit.com/${results[0].domain}`;
           img.alt = d.company_name;
-          img.style.cssText = 'width:28px;height:28px;border-radius:5px;object-fit:contain;background:#fff;padding:2px;margin-left:10px;flex-shrink:0;';
-          img.onerror = () => img.remove();
-          const brand = document.querySelector('.header-brand');
-          if (brand) brand.appendChild(img);
+          img.style.cssText = 'width:28px;height:28px;border-radius:6px;object-fit:contain;background:#fff;padding:3px;flex-shrink:0;';
+          img.onload = () => {
+            // db-logo-mark wraps the SVG — replace the whole div
+            const logoMark = document.querySelector('.db-logo-mark');
+            if (logoMark) logoMark.replaceWith(img);
+            else {
+              const brand = document.querySelector('.header-brand');
+              const brandSvg = brand ? brand.querySelector('svg') : null;
+              if (brandSvg) brandSvg.replaceWith(img);
+              else if (brand) brand.prepend(img);
+            }
+            const titleMain = document.querySelector('.header-title-main');
+            if (titleMain) titleMain.textContent = 'Manufacturing Intelligence';
+          };
+          img.onerror = () => {};
+          img.src = `https://cdn.brandfetch.io/domain/${results[0].domain}?c=1idGdcDDyuPmwhnhURl`;
         })
         .catch(() => {});
     }

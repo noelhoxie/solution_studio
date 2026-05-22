@@ -110,8 +110,7 @@ def _auto_auth():
 # ── Company Logo ─────────────────────────────────────────────────────────────────
 
 def _clearbit_logo(name: str) -> str:
-    """Return a logo URL for the given company name via Clearbit autocomplete (free, no key).
-    Autocomplete returns logo=null but always returns domain; construct the logo URL from it."""
+    """Return a Brandfetch logo URL for the given company name via Clearbit autocomplete domain lookup."""
     if not name:
         return ""
     try:
@@ -123,7 +122,7 @@ def _clearbit_logo(name: str) -> str:
         results = r.json()
         if results and isinstance(results, list) and results[0].get("domain"):
             domain = results[0]["domain"]
-            return f"https://logo.clearbit.com/{domain}"
+            return f"https://cdn.brandfetch.io/domain/{domain}?c=1idGdcDDyuPmwhnhURl"
     except Exception:
         pass
     return ""

@@ -87,12 +87,18 @@ async function loadAppConfig() {
         .then(results => {
           if (!results || !results[0] || !results[0].domain) return;
           const img = document.createElement('img');
-          img.src = `https://logo.clearbit.com/${results[0].domain}`;
           img.alt = d.company_name;
-          img.style.cssText = 'width:22px;height:22px;border-radius:4px;object-fit:contain;background:#fff;padding:2px;margin-left:8px;flex-shrink:0;';
-          img.onerror = () => img.remove();
-          const brand = document.querySelector('.nav-brand');
-          if (brand) brand.appendChild(img);
+          img.style.cssText = 'width:28px;height:28px;border-radius:6px;object-fit:contain;background:#fff;padding:3px;flex-shrink:0;';
+          img.onload = () => {
+            const brand = document.querySelector('.nav-brand');
+            const brandSvg = brand ? brand.querySelector('svg') : null;
+            if (brandSvg) brandSvg.replaceWith(img);
+            else if (brand) brand.prepend(img);
+            const nameEl = document.querySelector('.nav-brand-name');
+            if (nameEl) nameEl.textContent = 'Finance Intelligence';
+          };
+          img.onerror = () => {};
+          img.src = `https://cdn.brandfetch.io/domain/${results[0].domain}?c=1idGdcDDyuPmwhnhURl`;
         })
         .catch(() => {});
     }
