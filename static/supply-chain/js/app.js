@@ -60,6 +60,8 @@ let   _drillKey   = 0;
 
 // SKU forecast error history (populated by renderDemErrorsTable)
 let _skuErrorData = [];
+let _skuAllData   = [];   // full unfiltered copy for filtering
+let _supplierRaw  = [];   // full unfiltered supplier list for filtering
 
 function _storeDrill(title, content) {
   const key = 'k' + (_drillKey++);
@@ -1306,6 +1308,7 @@ async function fetchDemand() {
     renderDemFaChart(d.forecast_vs_actual);
     renderDemMapeChart(d.category_mape);
     renderDemTrendChart(d.mape_trend);
+    _skuAllData = d.top_errors;
     renderDemErrorsTable(d.top_errors);
   } catch (e) { console.error('Demand fetch error', e); }
 }
@@ -1880,6 +1883,7 @@ function renderOrdAutoChart(trend) {
 function renderOrdSupplierTable(suppliers) {
   const tbody = document.querySelector('#ord-supplier-table tbody');
   if (!tbody) return;
+  if (_supplierRaw.length === 0) _supplierRaw = suppliers; // store original on first call
   const sortedSuppliers = [...suppliers].sort((a, b) => b.otd - a.otd);
   tbody.innerHTML = sortedSuppliers.map(s => {
     const cls = s.otd >= 93 ? 'otd-good' : s.otd >= 87 ? 'otd-warn' : 'otd-bad';
@@ -2032,6 +2036,47 @@ function applyFilters() {
   if (countEl) {
     countEl.classList.toggle('hidden', active === 0);
     if (active > 0) countEl.textContent = `${active} filter${active > 1 ? 's' : ''} active`;
+  }
+
+  const region   = document.getElementById('f-region')?.value   || '';
+  const category = document.getElementById('f-category')?.value || '';
+
+  // Filter supplier OTD table (Orders tab)
+  if (_supplierRaw.length) {
+    const AMER = ['USA', 'Canada', 'Mexico', 'Brazil', 'Colombia', 'Argentina'];
+    const EMEA = ['Germany', 'UK', 'Netherlands', 'France', 'Spain', 'Italy', 'Belgium', 'Sweden', 'Switzerland', 'Norway', 'Denmark', 'Poland'];
+    const APAC = ['China', 'Japan', 'South Korea', 'Korea', 'Singapore', 'Australia', 'India', 'Taiwan', 'Vietnam', 'Thailand'];
+    const filteredSuppliers = !region ? _supplierRaw : _supplierRaw.filter(s => {
+      if (region === 'amer') return AMER.includes(s.country);
+      if (region === 'emea') return EMEA.includes(s.country);
+      if (region === 'apac') return APAC.includes(s.country);
+      return true;
+    });
+    const tbody = document.querySelector('#ord-supplier-table tbody');
+    if (tbody) {
+      if (!filteredSuppliers.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted)">No suppliers for selected region</td></tr>`;
+      } else {
+        // temporarily clear _supplierRaw guard so renderOrdSupplierTable re-uses it
+        const saved = _supplierRaw;
+        _supplierRaw = [];
+        renderOrdSupplierTable(filteredSuppliers);
+        _supplierRaw = saved;
+      }
+    }
+  }
+
+  // Filter forecast SKU errors table (Demand tab)
+  if (_skuAllData.length) {
+    const filteredSkus = !category ? _skuAllData : _skuAllData.filter(e => {
+      if (category === 'fg')  return e.sku.startsWith('FG-');
+      if (category === 'rm')  return e.sku.startsWith('RM-') || e.sku.startsWith('COMP-');
+      if (category === 'wip') return e.sku.startsWith('WIP-');
+      return true;
+    });
+    renderDemErrorsTable(filteredSkus.length ? filteredSkus : _skuAllData);
+    // Restore full set so drills still work when filter is cleared
+    if (filteredSkus.length) _skuErrorData = filteredSkus;
   }
 }
 

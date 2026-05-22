@@ -3,6 +3,7 @@
 // ── State ─────────────────────────────────────────────────────────────────────
 let allMachines       = [];
 let allAlarms         = [];
+let _mtbfRaw          = [];
 let selectedMachineId = null;
 let shiftConvId       = null;
 let liveInterval      = null;
@@ -92,6 +93,7 @@ async function loadStatic() {
     fetch('/manufacturing/api/quality').then(r => r.json()),
   ]);
   allAlarms = alarms;
+  _mtbfRaw  = downtime.mtbf;
 
   renderAlarmList(alarms);
   renderMtbfTable(downtime.mtbf);
@@ -1380,6 +1382,9 @@ function renderTalkTrack(tab) {
 }
 
 // ── Filter Bar ────────────────────────────────────────────────────────────────
+// Line prefix → plant filter value mapping
+const _PLANT_LINE = { p1: 'BDY', p2: 'PNT', p3: 'PTN', p4: 'FAL' };
+
 function applyFilters() {
   const selects = document.querySelectorAll('.filter-select');
   const active = Array.from(selects).filter(s => s.value !== '').length;
@@ -1389,6 +1394,36 @@ function applyFilters() {
   if (countEl) {
     countEl.classList.toggle('hidden', active === 0);
     if (active > 0) countEl.textContent = `${active} filter${active > 1 ? 's' : ''} active`;
+  }
+
+  const plant = document.getElementById('f-plant')?.value || '';
+
+  // Floor map: dim/restore machine nodes by production line
+  const prefix = plant ? _PLANT_LINE[plant] : null;
+  document.querySelectorAll('.fnode[id^="fnode-"]').forEach(node => {
+    const machinePrefix = node.id.replace('fnode-', '').split('-')[0];
+    const show = !prefix || machinePrefix === prefix;
+    node.style.opacity = show ? '' : '0.18';
+    node.style.pointerEvents = show ? '' : 'none';
+  });
+
+  // MTBF table: filter by machine ID prefix
+  if (_mtbfRaw.length) {
+    const filtered = prefix ? _mtbfRaw.filter(m => m.id.startsWith(prefix)) : _mtbfRaw;
+    const tbody = document.getElementById('mtbf-tbody');
+    if (tbody) {
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--yellow)">No maintenance records for selected plant</td></tr>`;
+      } else {
+        renderMtbfTable(filtered);
+      }
+    }
+  }
+
+  // Alarm list: filter by machine ID prefix
+  if (allAlarms && allAlarms.length) {
+    const filtered = prefix ? allAlarms.filter(a => (a.machine_id || '').startsWith(prefix)) : allAlarms;
+    renderAlarmList(filtered);
   }
 }
 

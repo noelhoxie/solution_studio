@@ -11,6 +11,12 @@ let _wcLoaded   = false;
 let _cfLoaded   = false;
 let _costLoaded = false;
 
+// raw data for filter re-renders
+let _plRaw   = [];
+let _wcRaw   = [];
+let _cfRaw   = [];
+let _costRaw = [];
+
 // ── Page-time logging ──────────────────────────────────────────────────────
 function _startTimer() {
   clearInterval(_timerInterval);
@@ -63,6 +69,7 @@ function switchTab(tab) {
   });
   _activeTab = tab;
   _startTimer();
+  _applyFinFilters(); // re-apply active filters for new tab
 
   // Refresh open agent panel
   const ap = document.getElementById('agent-panel');
@@ -184,7 +191,12 @@ function highlight(text) {
 async function loadTrend() {
   try {
     const rows = await fetch('/finance/api/pl-trend').then(r => r.json());
-    if (rows && rows.length) renderTrendChart(rows, 'trend-chart', '#D4A017', '#4CAF7D');
+    if (rows && rows.length) {
+      _plRaw = rows;
+      const pf = document.getElementById('f-period')?.value || '';
+      const show = _filterByPeriod(rows, pf);
+      renderTrendChart(show.length >= 2 ? show : rows, 'trend-chart', '#D4A017', '#4CAF7D');
+    }
   } catch (_) {}
 }
 
@@ -247,20 +259,9 @@ async function loadWorkingCapital() {
     if (cccEl) { cccEl.textContent = (parseFloat(avgCcc) <= 0 ? '' : '+') + avgCcc + 'd'; cccEl.className = 'kpi-val ' + (parseFloat(avgCcc) <= 0 ? 'positive' : 'negative'); }
     setText('wc-k4', avgAr + '%');
 
-    tbody.innerHTML = rows.map(r => {
-      const ccc = parseFloat(r.ccc);
-      const cccCls  = ccc <= 0 ? 'ccc-positive' : 'ccc-negative';
-      const cccSign = ccc <= 0 ? '' : '+';
-      const ar90 = parseFloat(r.ar_90_plus_pct);
-      const arCls = ar90 > 7 ? 'ar-warn' : '';
-      return `<tr>
-        <td>${r.region}</td>
-        <td>${r.dso}d</td>
-        <td>${r.dpo}d</td>
-        <td class="${cccCls}">${cccSign}${ccc}d</td>
-        <td class="${arCls}">${ar90}%</td>
-      </tr>`;
-    }).join('');
+    _wcRaw = rows;
+    const buF = document.getElementById('f-bu')?.value || '';
+    _renderWcTableRows(_applyBuFilter(_wcRaw, buF));
   } catch (_) {
     if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="loading-cell">Unable to load</td></tr>`;
   }
@@ -270,6 +271,7 @@ async function loadWorkingCapital() {
 async function loadCashFlow() {
   try {
     const rows = await fetch('/finance/api/cash-flow').then(r => r.json());
+    _cfRaw = rows;
     const latest = rows[rows.length - 1];
     const prev   = rows[rows.length - 5] || rows[0]; // Q1 prior year
     setText('cf-k1', `$${latest.operating_cf}M`);
@@ -281,19 +283,8 @@ async function loadCashFlow() {
     // Global KPI strip FCF
     setText('gkpi-fcf', `$${latest.fcf}M`);
 
-    // Chart — map rows to use operating_cf and fcf keys
-    renderTrendChart(rows, 'cf-trend-chart', '#1B6FEB', '#4CAF7D');
-
-    // Table
-    const tbody = document.getElementById('cf-tbody');
-    if (tbody) {
-      tbody.innerHTML = [...rows].reverse().slice(0, 8).map(r => `<tr>
-        <td>${(r.period_key||r.period).replace('FY','')}</td>
-        <td>$${r.operating_cf}M</td>
-        <td style="color:var(--negative)">($${Math.abs(r.capex)}M)</td>
-        <td class="${parseFloat(r.fcf) >= 0 ? 'ccc-positive' : 'ccc-negative'}">$${r.fcf}M</td>
-      </tr>`).join('');
-    }
+    const pf = document.getElementById('f-period')?.value || '';
+    _renderCfTableRows(_filterByPeriod(rows, pf));
   } catch (_) {}
 }
 
@@ -301,6 +292,7 @@ async function loadCashFlow() {
 async function loadCostCenters() {
   try {
     const rows = await fetch('/finance/api/cost-centers').then(r => r.json());
+    _costRaw = rows;
     const totalActual  = rows.reduce((s, r) => s + parseFloat(r.actual_m), 0).toFixed(1);
     const overBudget   = rows.filter(r => parseFloat(r.variance_m) < 0).length;
     const totalVariance = rows.reduce((s, r) => s + parseFloat(r.variance_m), 0).toFixed(1);
@@ -315,21 +307,9 @@ async function loadCostCenters() {
     const tvEl = document.getElementById('cost-k4');
     if (tvEl) { tvEl.textContent = (parseFloat(totalVariance) >= 0 ? '+' : '') + `$${totalVariance}M`; tvEl.className = 'kpi-val ' + (parseFloat(totalVariance) >= 0 ? 'positive' : 'negative'); }
 
-    const tbody = document.getElementById('cost-tbody');
-    if (tbody) {
-      tbody.innerHTML = rows.map(r => {
-        const v = parseFloat(r.variance_m);
-        const over = v < 0;
-        return `<tr>
-          <td style="font-weight:600;color:var(--text-primary)">${r.cost_center}</td>
-          <td>${r.department}</td>
-          <td>$${r.budget_m}M</td>
-          <td>$${r.actual_m}M</td>
-          <td class="${over ? 'ccc-negative' : 'ccc-positive'}">${over ? '' : '+'}$${r.variance_m}M</td>
-          <td><span class="status-badge ${over ? 'over' : 'under'}">${over ? 'Over Budget' : 'On Track'}</span></td>
-        </tr>`;
-      }).join('');
-    }
+    const bu = document.getElementById('f-bu')?.value || '';
+    const ct = document.getElementById('f-costtype')?.value || '';
+    _renderCostTableRows(_applyCostFilter(_costRaw, bu, ct));
   } catch (_) {}
 }
 
@@ -524,11 +504,126 @@ function applyFilters() {
     countEl.classList.toggle('hidden', active === 0);
     if (active > 0) countEl.textContent = `${active} filter${active > 1 ? 's' : ''} active`;
   }
+  _applyFinFilters();
 }
 
 function clearFilters() {
   document.querySelectorAll('.filter-select').forEach(s => { s.value = ''; });
   applyFilters();
+}
+
+function _applyFinFilters() {
+  const period = document.getElementById('f-period')?.value || '';
+  const bu     = document.getElementById('f-bu')?.value || '';
+  const ct     = document.getElementById('f-costtype')?.value || '';
+
+  if (_activeTab === 'pl' && _plRaw.length) {
+    const show = _filterByPeriod(_plRaw, period);
+    renderTrendChart(show.length >= 2 ? show : _plRaw, 'trend-chart', '#D4A017', '#4CAF7D');
+  }
+  if (_activeTab === 'working-capital' && _wcRaw.length) {
+    _renderWcTableRows(_applyBuFilter(_wcRaw, bu));
+  }
+  if (_activeTab === 'cashflow' && _cfRaw.length) {
+    _renderCfTableRows(_filterByPeriod(_cfRaw, period));
+  }
+  if (_activeTab === 'cost' && _costRaw.length) {
+    _renderCostTableRows(_applyCostFilter(_costRaw, bu, ct));
+  }
+}
+
+function _filterByPeriod(rows, period) {
+  if (!period) return rows;
+  return rows.filter(r => {
+    const k = r.period_key || '';
+    if (period === 'q1-25') return k === 'FY2025-Q1';
+    if (period === 'q4-24') return k === 'FY2024-Q4';
+    if (period === 'ytd')   return k.startsWith('FY2025');
+    if (period === 'fy24')  return k.startsWith('FY2024');
+    return true;
+  });
+}
+
+function _applyBuFilter(rows, bu) {
+  if (!bu) return rows;
+  return rows.filter(r => {
+    const reg = (r.region || '').toLowerCase();
+    if (bu === 'amer') return reg.includes('north america') || reg.includes('americas') || reg.includes('latin america');
+    if (bu === 'emea') return reg === 'emea';
+    if (bu === 'apac') return reg === 'apac';
+    if (bu === 'corp') return (r.department || '').toLowerCase() === 'corporate';
+    return true;
+  });
+}
+
+function _applyCostFilter(rows, bu, ct) {
+  return rows.filter(r => {
+    const dep = r.department || '';
+    if (bu === 'corp' && dep !== 'Corporate') return false;
+    if (ct === 'opex'  && !['Operations', 'Commercial'].includes(dep)) return false;
+    if (ct === 'capex' && dep !== 'Technology') return false;
+    if (ct === 'ga'    && dep !== 'Corporate')  return false;
+    return true;
+  });
+}
+
+function _renderWcTableRows(rows) {
+  const tbody = document.getElementById('wc-tbody');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="loading-cell">No data matches the selected filters</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const ccc = parseFloat(r.ccc);
+    const cccCls  = ccc <= 0 ? 'ccc-positive' : 'ccc-negative';
+    const cccSign = ccc <= 0 ? '' : '+';
+    const ar90 = parseFloat(r.ar_90_plus_pct);
+    const arCls = ar90 > 7 ? 'ar-warn' : '';
+    return `<tr>
+      <td>${r.region}</td>
+      <td>${r.dso}d</td>
+      <td>${r.dpo}d</td>
+      <td class="${cccCls}">${cccSign}${ccc}d</td>
+      <td class="${arCls}">${ar90}%</td>
+    </tr>`;
+  }).join('');
+}
+
+function _renderCfTableRows(rows) {
+  const toShow = rows.length ? rows : _cfRaw;
+  // Chart
+  if (toShow.length >= 2) renderTrendChart(toShow, 'cf-trend-chart', '#1B6FEB', '#4CAF7D');
+  // Table
+  const tbody = document.getElementById('cf-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = [...toShow].reverse().slice(0, 8).map(r => `<tr>
+    <td>${(r.period_key || r.period || '').replace('FY', '')}</td>
+    <td>$${r.operating_cf}M</td>
+    <td style="color:var(--negative)">($${Math.abs(r.capex)}M)</td>
+    <td class="${parseFloat(r.fcf) >= 0 ? 'ccc-positive' : 'ccc-negative'}">$${r.fcf}M</td>
+  </tr>`).join('');
+}
+
+function _renderCostTableRows(rows) {
+  const tbody = document.getElementById('cost-tbody');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="loading-cell">No data matches the selected filters</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const v = parseFloat(r.variance_m);
+    const over = v < 0;
+    return `<tr>
+      <td style="font-weight:600;color:var(--text-primary)">${r.cost_center}</td>
+      <td>${r.department}</td>
+      <td>$${r.budget_m}M</td>
+      <td>$${r.actual_m}M</td>
+      <td class="${over ? 'ccc-negative' : 'ccc-positive'}">${over ? '' : '+'}$${r.variance_m}M</td>
+      <td><span class="status-badge ${over ? 'over' : 'under'}">${over ? 'Over Budget' : 'On Track'}</span></td>
+    </tr>`;
+  }).join('');
 }
 
 // ── Agent Actions ───────────────────────────────────────────────────────────
