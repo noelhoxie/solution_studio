@@ -147,8 +147,62 @@ html, body {
   background: var(--db-red); animation: pulse 2s ease-in-out infinite;
 }
 
+/* ── Filter Bar ──────────────────────────────────────────────────────────── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 24px;
+  height: 42px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 104px;
+  z-index: 98;
+  flex-shrink: 0;
+}
+.filter-icon { color: var(--text-muted); flex-shrink: 0; }
+.filter-select {
+  height: 27px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-family: inherit;
+  padding: 0 8px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color .15s;
+}
+.filter-select:hover, .filter-select:focus { border-color: var(--green); }
+.filter-select option { background: var(--surface-2); }
+.filter-clear {
+  height: 26px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-family: inherit;
+  padding: 0 10px;
+  cursor: pointer;
+  margin-left: 4px;
+  transition: color .15s, border-color .15s;
+}
+.filter-clear:hover { color: var(--text); border-color: rgba(239,68,68,0.4); }
+.filter-count {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--green);
+  background: rgba(0,255,157,0.1);
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
 /* ── Main ─────────────────────────────────────────────────────────────────── */
-.main-content { padding: 16px 24px; min-height: calc(100vh - 104px); }
+.main-content { padding: 16px 24px; min-height: calc(100vh - 146px); }
 .tab-panel { display: block; }
 .tab-panel.hidden { display: none; }
 

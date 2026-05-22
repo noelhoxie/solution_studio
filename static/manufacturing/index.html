@@ -15,7 +15,7 @@
 <!-- ── Identity bar — consistent across all Solution Studio apps ─────────── -->
 <header class="app-header">
   <div class="header-brand">
-    <div class="db-logo-mark">
+    <div class="db-logo-mark" style="display:none">
       <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" width="28" height="28">
         <path d="M16 3L4 10v6l12 7 12-7v-6L16 3z" fill="#FF3621"/>
         <path d="M4 16v6l12 7 12-7v-6l-12 7-12-7z" fill="#FF6B35" opacity="0.85"/>
@@ -28,6 +28,9 @@
   </div>
 
   <div class="header-divider"></div>
+
+  <!-- AI Actions — left of All Apps -->
+  <button class="nav-agent-btn" id="nav-agent-btn" onclick="openAgentPanel()" style="margin-right:8px;">AI Actions</button>
 
   <a href="/portal" style="font-size:11.5px;color:rgba(255,255,255,0.35);text-decoration:none;display:flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;transition:all .15s;white-space:nowrap;"
      onmouseover="this.style.color='#f0f0f0';this.style.borderColor='rgba(255,255,255,0.2)'"
@@ -55,12 +58,6 @@
   </button>
   <button class="nav-tab"        data-tab="manuals"  onclick="switchTab('manuals')">
     Equipment Manuals <span class="ai-pip"></span>
-  </button>
-  <button class="nav-agent-btn" id="nav-agent-btn" onclick="openAgentPanel()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-      <path d="M12 2C12 7.8 7.8 12 2 12C7.8 12 12 16.2 12 22C12 16.2 16.2 12 22 12C16.2 12 12 7.8 12 2Z"/>
-    </svg>
-    Actions Taken
   </button>
   <!-- Live KPIs pushed to the right -->
   <div class="header-kpis" style="margin-left:auto;">
@@ -90,6 +87,34 @@
   </div>
   <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" style="margin-left:10px;">🌙</button>
 </nav>
+
+<!-- ── Filter Bar ────────────────────────────────────────────────────────── -->
+<div class="filter-bar" id="filter-bar">
+  <svg class="filter-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+  </svg>
+  <select class="filter-select" id="f-period" onchange="applyFilters()">
+    <option value="">Live</option>
+    <option value="24h">Last 24 Hours</option>
+    <option value="7d">Last 7 Days</option>
+    <option value="30d">Last 30 Days</option>
+  </select>
+  <select class="filter-select" id="f-plant" onchange="applyFilters()">
+    <option value="">All Plants</option>
+    <option value="p1">Plant 1 — Detroit</option>
+    <option value="p2">Plant 2 — Chicago</option>
+    <option value="p3">Plant 3 — Houston</option>
+    <option value="p4">Plant 4 — San Jose</option>
+  </select>
+  <select class="filter-select" id="f-shift" onchange="applyFilters()">
+    <option value="">All Shifts</option>
+    <option value="day">Day (06:00–14:00)</option>
+    <option value="eve">Evening (14:00–22:00)</option>
+    <option value="night">Night (22:00–06:00)</option>
+  </select>
+  <button class="filter-clear hidden" id="filter-clear" onclick="clearFilters()">✕ Clear</button>
+  <span class="filter-count hidden" id="filter-count"></span>
+</div>
 
 <!-- ── Talk Track FAB ────────────────────────────────────────────────────── -->
 <button class="talk-fab" id="talk-fab" onclick="openTalkTrack()" title="60-second talk track">

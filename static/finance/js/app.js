@@ -64,6 +64,10 @@ function switchTab(tab) {
   _activeTab = tab;
   _startTimer();
 
+  // Refresh open agent panel
+  const ap = document.getElementById('agent-panel');
+  if (ap && !ap.classList.contains('hidden')) renderAgentPanel(tab);
+
   // Lazy-load data on first visit
   if (tab === 'pl'              && !_plLoaded)   { _plLoaded   = true; loadPl(); }
   if (tab === 'working-capital' && !_wcLoaded)   { _wcLoaded   = true; loadWorkingCapital(); }
@@ -507,4 +511,169 @@ function removeMsg(id) { if (id) document.getElementById(id)?.remove(); }
 function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Filter Bar ───────────────────────────────────────────────────────────────
+function applyFilters() {
+  const selects = document.querySelectorAll('.filter-select');
+  const active = Array.from(selects).filter(s => s.value !== '').length;
+  const clearBtn = document.getElementById('filter-clear');
+  const countEl  = document.getElementById('filter-count');
+  if (clearBtn) clearBtn.classList.toggle('hidden', active === 0);
+  if (countEl) {
+    countEl.classList.toggle('hidden', active === 0);
+    if (active > 0) countEl.textContent = `${active} filter${active > 1 ? 's' : ''} active`;
+  }
+}
+
+function clearFilters() {
+  document.querySelectorAll('.filter-select').forEach(s => { s.value = ''; });
+  applyFilters();
+}
+
+// ── Agent Actions ───────────────────────────────────────────────────────────
+const FIN_TAB_LABELS = {
+  'pl':              'P&L Overview',
+  'working-capital': 'Working Capital',
+  'cashflow':        'Cash Flow',
+  'cost':            'Cost Management',
+};
+
+const AGENT_ACTIONS = {
+  pl: [
+    {
+      sys: 'ERP',
+      title: 'Post Q1 2025 Variance Report to Financial Planning System',
+      desc: 'Write the Q1 2025 revenue and EBITDA variance analysis to your ERP Financial Planning module, updating the official record with Databricks-generated actuals vs. budget figures — so the numbers are available for the board pack without manual re-entry.',
+      result: 'Variance report posted · Q1 2025 · Revenue variance –$2.1M · EBITDA variance –$0.8M · Document FI-PLAN-20250331 confirmed · Transaction FINS_FIN01-0000000051490001',
+    },
+    {
+      sys: 'Teams',
+      title: 'Send Executive P&L Briefing to CFO Leadership Channel',
+      desc: 'Post a concise P&L summary — revenue, EBITDA, margins, and top 3 variance drivers — to the #cfo-leadership channel in Teams, so the CFO and Finance VPs have the brief before the quarterly business review.',
+      result: 'P&L briefing posted to #cfo-leadership · Q1 2025 · $847M revenue · 22.1% EBITDA margin · 3 variance drivers highlighted · CFO and 4 Finance VPs notified · Posted 09:14',
+    },
+    {
+      sys: 'Email',
+      title: 'Email P&L Summary to Audit Committee',
+      desc: 'Send the Q1 2025 P&L summary, including revenue growth, EBITDA performance, and budget variance analysis, to the Audit Committee distribution list — providing the pre-read materials ahead of the quarterly audit review.',
+      result: 'Email sent · "Q1 2025 P&L Summary — Audit Pre-Read" · Audit Committee (5 members) · Revenue, EBITDA, variance sections included · Sent 09:16',
+    },
+  ],
+  'working-capital': [
+    {
+      sys: 'ERP',
+      title: 'Flag AR 90+ Days for Automated Collections Workflow',
+      desc: 'Create collection tasks in your ERP Accounts Receivable module for all invoices 90+ days past due — assigning them to the regional AR teams with the outstanding amounts and contact details pre-populated, so collections can begin immediately.',
+      result: 'Collections workflow triggered · 14 invoices flagged · $3.2M total past due · 3 regions assigned · Transaction FIAR-COLL-20250331-0000000051491001 confirmed · Due follow-up: 5 business days',
+    },
+    {
+      sys: 'ERP',
+      title: 'Update DPO Payment Terms for Top 5 Strategic Suppliers',
+      desc: 'Apply the renegotiated 45-day payment terms to the top 5 strategic suppliers in your ERP Vendor Master — extending DPO from the current 38-day average and releasing an estimated $4.1M of working capital.',
+      result: 'Payment terms updated · 5 suppliers · Terms extended to Net-45 · Estimated WC release $4.1M · Transaction FIAP-VEND-0000000051491050 confirmed · Effective next billing cycle',
+    },
+    {
+      sys: 'Teams',
+      title: 'Alert Treasury Team to Cash Conversion Cycle Deterioration',
+      desc: 'Post a working capital alert to the #treasury-ops channel covering the 3-day CCC increase — highlighting the DSO climb in EMEA and the DPO shortfall in APAC — with the recommended actions to restore the target CCC range.',
+      result: 'Alert posted to #treasury-ops · CCC +3 days vs target · EMEA DSO elevated · APAC DPO shortfall · Recommended actions attached · Treasury Lead T. Morales notified · Posted 09:21',
+    },
+  ],
+  cashflow: [
+    {
+      sys: 'ERP',
+      title: 'Update 13-Week Cash Flow Forecast in Treasury System',
+      desc: 'Push the updated 13-week forward cash flow forecast to your Treasury Management System, incorporating the Databricks-generated operating CF projections and capex schedule — replacing the manual spreadsheet with a live, model-driven view.',
+      result: 'Forecast updated · 13-week horizon · Operating CF $94.3M projected · Capex $18.7M · FCF $75.6M · Transaction FITR-FCST-0000000051492001 confirmed · Next review: May 28',
+    },
+    {
+      sys: 'Teams',
+      title: 'Post FCF Risk Report to Finance Leadership Channel',
+      desc: 'Share the Q1 2025 free cash flow analysis — including the $6.2M YoY improvement, capex drawdown, and the two outlier quarters flagged for review — in the #finance-leadership channel ahead of the board meeting.',
+      result: 'FCF report posted to #finance-leadership · Q1 FCF $75.6M · YoY +$6.2M · 2 outlier quarters flagged · Board pack attached · 6 Finance leadership members notified · Posted 09:28',
+    },
+    {
+      sys: 'Email',
+      title: 'Email Q1 Cash Position Summary to CFO and Board Secretary',
+      desc: 'Send the Q1 2025 cash position summary — operating CF, capex, FCF, and the 13-week forward view — to the CFO and Board Secretary for inclusion in the formal board materials package.',
+      result: 'Email sent · "Q1 2025 Cash Position — Board Pack" · CFO P. Lawson, Board Secretary M. Reyes · FCF, capex, 13-week forecast included · Sent 09:30',
+    },
+  ],
+  cost: [
+    {
+      sys: 'ERP',
+      title: 'Create Budget Override Requests for Over-Budget Cost Centers',
+      desc: 'Raise formal budget adjustment requests in your ERP Controlling module for the 4 cost centers currently over budget — pre-populated with the Databricks-calculated variance amounts and the Finance Business Partner assignments for sign-off.',
+      result: '4 override requests created · Total variance $3.8M · G&A +$1.2M · IT +$0.9M · HR +$0.8M · Marketing +$0.9M · Transaction FICO-BUDR-0000000051493001 confirmed · Sent to Finance BPs',
+    },
+    {
+      sys: 'ERP',
+      title: 'Trigger Cost Review Workflow in Spend Management System',
+      desc: 'Initiate the quarterly cost review workflow in your ERP Spend Management module for all cost centers with variance > 5% — assigning review tasks to department Finance Business Partners with the variance analysis and supporting GL detail attached.',
+      result: 'Cost review workflow triggered · 6 cost centers in scope · Variance > 5% threshold · GL detail attached · Transaction FICO-REVW-0000000051493050 confirmed · Due: May 30',
+    },
+    {
+      sys: 'Teams',
+      title: 'Escalate G&A Variance to Department Finance Leads',
+      desc: 'Post a cost variance escalation to the #finance-bps channel, covering the top 4 over-budget cost centers — with the variance amount, root cause, and recommended corrective action for each department — so Finance Business Partners can act before month-end close.',
+      result: 'Escalation posted to #finance-bps · 4 cost centers · $3.8M total variance · Root causes and corrective actions attached · 4 Finance BPs notified · Posted 09:35',
+    },
+  ],
+};
+
+function openAgentPanel() {
+  document.getElementById('agent-overlay').classList.remove('hidden');
+  document.getElementById('agent-panel').classList.remove('hidden');
+  renderAgentPanel(_activeTab);
+}
+function closeAgentPanel() {
+  document.getElementById('agent-overlay').classList.add('hidden');
+  document.getElementById('agent-panel').classList.add('hidden');
+}
+
+function renderAgentPanel(tab) {
+  const badge = document.getElementById('agent-tab-badge');
+  if (badge) badge.textContent = FIN_TAB_LABELS[tab] || tab;
+
+  const actions = AGENT_ACTIONS[tab] || AGENT_ACTIONS.pl;
+  const list = document.getElementById('agent-actions-list');
+  if (!list) return;
+  list.innerHTML = actions.map((a, i) => {
+    const sysClass = a.sys === 'ERP' ? 'badge-sap' : a.sys === 'Teams' ? 'badge-teams' : 'badge-email';
+    return `
+      <div class="agent-action-card" id="fin-agent-card-${tab}-${i}">
+        <div class="agent-action-header-row">
+          <span class="agent-sys-badge ${sysClass}">${escHtml(a.sys)}</span>
+          <div class="agent-action-title">${escHtml(a.title)}</div>
+        </div>
+        <div class="agent-action-desc">${escHtml(a.desc)}</div>
+        <button class="agent-approve-btn" onclick="runAgentAction('${tab}',${i})">Approve &amp; Execute</button>
+      </div>`;
+  }).join('');
+}
+
+function runAgentAction(tab, idx) {
+  const actions = AGENT_ACTIONS[tab] || AGENT_ACTIONS.pl;
+  const a = actions[idx];
+  if (!a) return;
+
+  const card = document.getElementById(`fin-agent-card-${tab}-${idx}`);
+  if (!card) return;
+
+  const btn = card.querySelector('.agent-approve-btn');
+  if (btn) btn.remove();
+
+  const running = document.createElement('div');
+  running.className = 'agent-running';
+  running.innerHTML = `<span class="spinner sm"></span><span>Executing — connecting to ${escHtml(a.sys)}…</span>`;
+  card.appendChild(running);
+
+  setTimeout(() => {
+    running.remove();
+    const result = document.createElement('div');
+    result.className = 'agent-result';
+    result.textContent = a.result;
+    card.appendChild(result);
+  }, 2200 + Math.random() * 600);
 }

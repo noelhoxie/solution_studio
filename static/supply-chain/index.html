@@ -14,7 +14,7 @@
 <!-- ── Navigation ─────────────────────────────────────────────────────────── -->
 <nav class="nav" id="main-nav">
   <div class="nav-brand">
-    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="26" height="26">
+    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" width="26" height="26" style="display:none">
       <rect width="48" height="48" rx="10" fill="#1A0500"/>
       <path d="M24 8L8 17v8l16 9 16-9v-8L24 8z" fill="#FF3621"/>
       <path d="M8 25v8l16 9 16-9v-8l-16 9-16-9z" fill="#FF6B35" opacity="0.8"/>
@@ -32,14 +32,6 @@
   </button>
   <button class="nav-tab"        data-tab="contact"    onclick="switchTab('contact')">Contact Us</button>
 
-  <!-- Back to portal -->
-  <a href="/portal" style="font-size:11.5px;color:rgba(255,255,255,0.35);text-decoration:none;display:flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;margin-left:auto;transition:all .15s;white-space:nowrap;"
-     onmouseover="this.style.color='#f0f0f0';this.style.borderColor='rgba(255,255,255,0.2)'"
-     onmouseout="this.style.color='rgba(255,255,255,0.35)';this.style.borderColor='rgba(255,255,255,0.08)'">
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-    All Apps
-  </a>
-
   <!-- Page Timer -->
   <div class="page-timer-wrap" id="page-timer-wrap" style="display:none">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -48,8 +40,16 @@
     <span id="page-timer">0:00</span>
   </div>
 
-  <!-- AI Actions -->
-  <button class="nav-agent-btn" id="nav-agent-btn" onclick="openAgentPanel()">AI Actions</button>
+  <!-- AI Actions — left of All Apps -->
+  <button class="nav-agent-btn" id="nav-agent-btn" onclick="openAgentPanel()" style="margin-left:auto;">AI Actions</button>
+
+  <!-- Back to portal -->
+  <a href="/portal" style="font-size:11.5px;color:rgba(255,255,255,0.35);text-decoration:none;display:flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;margin-left:8px;transition:all .15s;white-space:nowrap;"
+     onmouseover="this.style.color='#f0f0f0';this.style.borderColor='rgba(255,255,255,0.2)'"
+     onmouseout="this.style.color='rgba(255,255,255,0.35)';this.style.borderColor='rgba(255,255,255,0.08)'">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    All Apps
+  </a>
   <a href="/logout" style="font-size:11.5px;color:rgba(255,255,255,0.35);text-decoration:none;display:flex;align-items:center;gap:5px;padding:4px 10px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;margin-left:8px;transition:all .15s;white-space:nowrap;"
      onmouseover="this.style.color='#f0f0f0';this.style.borderColor='rgba(239,68,68,0.4)'"
      onmouseout="this.style.color='rgba(255,255,255,0.35)';this.style.borderColor='rgba(255,255,255,0.08)'">
@@ -103,6 +103,41 @@
     <div class="gkpi-val" id="gkpi-fill"><span class="spinner sm"></span></div>
     <div class="gkpi-sub">customer orders</div>
   </div>
+</div>
+
+<!-- ── Filter Bar ────────────────────────────────────────────────────────── -->
+<div class="filter-bar" id="filter-bar">
+  <svg class="filter-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+  </svg>
+  <select class="filter-select" id="f-period" onchange="applyFilters()">
+    <option value="">All Periods</option>
+    <option value="30d">Last 30 Days</option>
+    <option value="q1">Q1 2025</option>
+    <option value="q2">Q2 2025</option>
+    <option value="12m">Last 12 Months</option>
+  </select>
+  <select class="filter-select" id="f-region" onchange="applyFilters()">
+    <option value="">All Regions</option>
+    <option value="amer">Americas</option>
+    <option value="emea">EMEA</option>
+    <option value="apac">APAC</option>
+  </select>
+  <select class="filter-select" id="f-bu" onchange="applyFilters()">
+    <option value="">All Business Units</option>
+    <option value="auto">Automotive</option>
+    <option value="ind">Industrial</option>
+    <option value="cons">Consumer</option>
+    <option value="elec">Electronics</option>
+  </select>
+  <select class="filter-select" id="f-category" onchange="applyFilters()">
+    <option value="">All Categories</option>
+    <option value="fg">Finished Goods</option>
+    <option value="rm">Raw Materials</option>
+    <option value="wip">Work in Progress</option>
+  </select>
+  <button class="filter-clear hidden" id="filter-clear" onclick="clearFilters()">✕ Clear</button>
+  <span class="filter-count hidden" id="filter-count"></span>
 </div>
 
 <!-- ── Main Content ───────────────────────────────────────────────────────── -->

@@ -1379,6 +1379,24 @@ function renderTalkTrack(tab) {
   `;
 }
 
+// ── Filter Bar ────────────────────────────────────────────────────────────────
+function applyFilters() {
+  const selects = document.querySelectorAll('.filter-select');
+  const active = Array.from(selects).filter(s => s.value !== '').length;
+  const clearBtn = document.getElementById('filter-clear');
+  const countEl  = document.getElementById('filter-count');
+  if (clearBtn) clearBtn.classList.toggle('hidden', active === 0);
+  if (countEl) {
+    countEl.classList.toggle('hidden', active === 0);
+    if (active > 0) countEl.textContent = `${active} filter${active > 1 ? 's' : ''} active`;
+  }
+}
+
+function clearFilters() {
+  document.querySelectorAll('.filter-select').forEach(s => { s.value = ''; });
+  applyFilters();
+}
+
 // ── Agentic Actions ───────────────────────────────────────────────────────────
 
 const TAB_LABELS = { floor: 'Live Floor', oee: 'OEE Analytics', downtime: 'Downtime', maintenance: 'Predictive Maintenance', quality: 'Quality', shift: 'Ask SHIFT', manuals: 'Equipment Manuals' };
